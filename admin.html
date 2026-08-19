@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>관리자 페이지 | NEO ACADEMY</title>
+<link rel="stylesheet" href="./css/style.css">
+<script src="./js/auth.js"></script>
+<script>
+  const SITE_ROOT = './';
+  const ACTIVE_CATEGORY = null;
+  Auth.requireAdmin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="admin-panel">
+    <div>
+      <p class="micro-cap placeholder-eyebrow">관리자</p>
+      <h1 class="heading-lg">선생님 계정 관리</h1>
+      <p class="body-md placeholder-desc">선생님 성함을 ID로, 비밀번호를 입력해 계정을 생성하세요. 생성된 ID와 비밀번호로 선생님이 로그인하면 상단 메뉴 기능을 이용할 수 있습니다.</p>
+    </div>
+
+    <form class="admin-form" id="teacher-form" novalidate>
+      <label class="auth-field">
+        <span class="caption">선생님 성함 (ID)</span>
+        <input type="text" name="id" class="text-input" required>
+      </label>
+      <label class="auth-field">
+        <span class="caption">비밀번호</span>
+        <input type="text" name="password" class="text-input" required>
+      </label>
+      <button type="submit" class="btn-primary">계정 생성</button>
+    </form>
+    <p class="auth-error" id="teacher-error" hidden></p>
+
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>이름 (ID)</th>
+          <th>비밀번호</th>
+          <th>생성일</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="teacher-table-body"></tbody>
+    </table>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="./js/layout.js"></script>
+<script>
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+  }
+
+  function renderTeachers() {
+    var tbody = document.getElementById('teacher-table-body');
+    var teachers = Auth.getTeachers();
+
+    if (teachers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="admin-empty">아직 생성된 선생님 계정이 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = teachers.map(function (t) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(t.id) + '</td>' +
+          '<td>' + escapeHtml(t.password) + '</td>' +
+          '<td>' + formatDate(t.createdAt) + '</td>' +
+          '<td><button type="button" class="admin-delete" data-id="' + escapeHtml(t.id) + '">삭제</button></td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  var form = document.getElementById('teacher-form');
+  var errorEl = document.getElementById('teacher-error');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var result = Auth.addTeacher(form.id.value, form.password.value);
+
+    if (!result.ok) {
+      errorEl.textContent = result.message;
+      errorEl.hidden = false;
+      return;
+    }
+
+    errorEl.hidden = true;
+    form.reset();
+    renderTeachers();
+  });
+
+  document.getElementById('teacher-table-body').addEventListener('click', function (e) {
+    var btn = e.target.closest('.admin-delete');
+    if (!btn) return;
+    if (confirm(btn.dataset.id + ' 선생님 계정을 삭제할까요?')) {
+      Auth.deleteTeacher(btn.dataset.id);
+      renderTeachers();
+    }
+  });
+
+  renderTeachers();
+</script>
+</body>
+</html>

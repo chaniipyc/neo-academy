@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로그인 | NEO ACADEMY</title>
+<link rel="stylesheet" href="./css/style.css">
+<script src="./js/auth.js"></script>
+<script>
+  const SITE_ROOT = './';
+  const ACTIVE_CATEGORY = null;
+  Auth.redirectIfLoggedIn(SITE_ROOT);
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="auth-main">
+  <form class="auth-card" id="login-form" novalidate>
+    <p class="micro-cap placeholder-eyebrow">NEO ACADEMY</p>
+    <h1 class="heading-lg">로그인</h1>
+
+    <label class="auth-field">
+      <span class="caption">아이디</span>
+      <input type="text" name="id" class="text-input" autocomplete="username" required>
+    </label>
+
+    <label class="auth-field">
+      <span class="caption">비밀번호</span>
+      <input type="password" name="password" class="text-input" autocomplete="current-password" required>
+    </label>
+
+    <p class="auth-error" id="login-error" hidden></p>
+
+    <button type="submit" class="btn-primary">로그인</button>
+    <p class="caption auth-hint">계정이 없으신 선생님은 관리자에게 문의해 주세요.</p>
+  </form>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="./js/layout.js"></script>
+<script>
+  var form = document.getElementById('login-form');
+  var errorEl = document.getElementById('login-error');
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var result = Auth.login(form.id.value, form.password.value);
+
+    if (!result.ok) {
+      errorEl.textContent = result.message;
+      errorEl.hidden = false;
+      return;
+    }
+
+    location.href = SITE_ROOT + (result.role === 'admin' ? 'admin.html' : 'index.html');
+  });
+</script>
+</body>
+</html>

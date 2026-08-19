@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 상세 정보 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/auth.js"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'students';
+  Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="detail-topbar">
+    <a class="btn-secondary" href="./students.html">← 목록으로</a>
+  </div>
+
+  <p class="breadcrumb body-md">
+    <a href="./students.html">학생 정보</a>
+    <span class="crumb-current" id="detail-breadcrumb-name">/ 학생</span>
+  </p>
+
+  <div class="detail-card" id="detail-card">
+    <p class="body-md">학생 정보를 불러오는 중입니다...</p>
+  </div>
+</main>
+
+<div class="modal-overlay" id="student-modal-overlay" hidden>
+  <div class="modal-card">
+    <h2 class="heading-md">학생 정보 수정</h2>
+
+    <form id="student-form">
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label class="auth-field">
+          <span class="caption">이름</span>
+          <input type="text" name="name" class="text-input" required>
+        </label>
+        <label class="auth-field">
+          <span class="caption">학교</span>
+          <input type="text" name="school" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학년</span>
+          <input type="text" name="grade" class="text-input" placeholder="예: 중2">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학생 전화번호</span>
+          <input type="tel" name="studentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학부모님 전화번호</span>
+          <input type="tel" name="parentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">주소</span>
+          <input type="text" name="address" class="text-input">
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">현재 수강 수업</span>
+          <textarea name="currentClasses" class="text-input" rows="2" placeholder="예: 수학 A반, 영어 B반"></textarea>
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">수강 수업 이력</span>
+          <textarea name="classHistory" class="text-input" rows="2" placeholder="예: 2025년 겨울방학 특강 수학 완성반"></textarea>
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">특이 사항</span>
+          <textarea name="notes" class="text-input" rows="2"></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="student-modal-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js"></script>
+<script src="../js/students.js"></script>
+<script>
+  var studentId = new URLSearchParams(location.search).get('id');
+  var detailCard = document.getElementById('detail-card');
+  var breadcrumbName = document.getElementById('detail-breadcrumb-name');
+  var overlay = document.getElementById('student-modal-overlay');
+  var form = document.getElementById('student-form');
+  var cancelBtn = document.getElementById('student-modal-cancel');
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function field(label, value, wide) {
+    return (
+      '<div class="detail-item' + (wide ? ' full-width' : '') + '">' +
+        '<span class="detail-label">' + label + '</span>' +
+        '<span class="detail-value">' + (value ? escapeHtml(value) : '<span class="detail-empty">-</span>') + '</span>' +
+      '</div>'
+    );
+  }
+
+  function renderStudent(s) {
+    breadcrumbName.textContent = '/ ' + s.name;
+
+    detailCard.innerHTML =
+      '<div class="detail-header">' +
+        '<h1 class="heading-lg">' + escapeHtml(s.name) + '</h1>' +
+        '<p class="caption">' + escapeHtml(s.school || '학교 미입력') + ' · ' + escapeHtml(s.grade || '학년 미입력') + '</p>' +
+      '</div>' +
+      '<div class="detail-grid">' +
+        field('학생 전화번호', s.studentPhone) +
+        field('학부모님 전화번호', s.parentPhone) +
+        field('주소', s.address, true) +
+        field('현재 수강 수업', s.currentClasses, true) +
+        field('수강 수업 이력', s.classHistory, true) +
+        field('특이 사항', s.notes, true) +
+      '</div>' +
+      '<div class="detail-actions">' +
+        '<button type="button" class="btn-secondary" id="detail-edit-btn">수정</button>' +
+        '<button type="button" class="btn-danger" id="detail-delete-btn">삭제</button>' +
+      '</div>';
+
+    document.getElementById('detail-edit-btn').addEventListener('click', function () {
+      openModal(s);
+    });
+    document.getElementById('detail-delete-btn').addEventListener('click', function () {
+      if (confirm(s.name + ' 학생 정보를 삭제할까요?')) {
+        Students.remove(s.id);
+        location.href = './students.html';
+      }
+    });
+  }
+
+  function openModal(student) {
+    form.reset();
+    form.id.value = student.id;
+    form.name.value = student.name;
+    form.school.value = student.school;
+    form.grade.value = student.grade;
+    form.studentPhone.value = student.studentPhone;
+    form.parentPhone.value = student.parentPhone;
+    form.address.value = student.address;
+    form.currentClasses.value = student.currentClasses;
+    form.classHistory.value = student.classHistory;
+    form.notes.value = student.notes;
+    overlay.hidden = false;
+    form.name.focus();
+  }
+
+  function closeModal() {
+    overlay.hidden = true;
+  }
+
+  cancelBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeModal();
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = {
+      name: form.name.value.trim(),
+      school: form.school.value.trim(),
+      grade: form.grade.value.trim(),
+      studentPhone: form.studentPhone.value.trim(),
+      parentPhone: form.parentPhone.value.trim(),
+      address: form.address.value.trim(),
+      currentClasses: form.currentClasses.value.trim(),
+      classHistory: form.classHistory.value.trim(),
+      notes: form.notes.value.trim()
+    };
+
+    if (!data.name) {
+      form.name.focus();
+      return;
+    }
+
+    var updated = Students.update(form.id.value, data);
+    closeModal();
+    if (updated) renderStudent(updated);
+  });
+
+  var student = studentId ? Students.getById(studentId) : null;
+
+  if (student) {
+    renderStudent(student);
+  } else {
+    detailCard.innerHTML =
+      '<p class="body-md">학생 정보를 찾을 수 없습니다.</p>' +
+      '<div class="detail-actions"><a class="btn-secondary" href="./students.html">학생 정보로 돌아가기</a></div>';
+  }
+</script>
+</body>
+</html>

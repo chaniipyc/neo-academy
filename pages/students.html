@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학생 정보 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/auth.js"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'students';
+  Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="heading-lg">학생 정보</h1>
+    <p class="body-md placeholder-desc">학생 정보를 등록, 수정, 검색할 수 있습니다. 자세한 정보는 "자세히 보기"에서 확인하세요.</p>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-group">
+      <input type="search" id="student-search" class="text-input" placeholder="검색어 입력">
+      <div class="search-filters" role="group" aria-label="검색 범위 선택">
+        <label class="filter-chip">
+          <input type="checkbox" class="filter-checkbox" value="name">
+          <span>이름</span>
+        </label>
+        <label class="filter-chip">
+          <input type="checkbox" class="filter-checkbox" value="school">
+          <span>학교</span>
+        </label>
+        <label class="filter-chip">
+          <input type="checkbox" class="filter-checkbox" value="grade">
+          <span>학년</span>
+        </label>
+        <label class="filter-chip">
+          <input type="checkbox" class="filter-checkbox" value="currentClasses">
+          <span>현재 수강 강좌</span>
+        </label>
+      </div>
+    </div>
+    <button type="button" class="btn-secondary" id="paste-student-btn">엑셀에서 붙여넣기</button>
+    <button type="button" class="btn-primary" id="add-student-btn">+ 학생 추가</button>
+  </div>
+
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>학교</th>
+          <th>학년</th>
+          <th>현재 수강 수업</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="student-table-body"></tbody>
+    </table>
+  </div>
+</main>
+
+<div class="modal-overlay" id="student-modal-overlay" hidden>
+  <div class="modal-card">
+    <h2 class="heading-md" id="student-modal-title">학생 추가</h2>
+
+    <form id="student-form">
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label class="auth-field">
+          <span class="caption">이름</span>
+          <input type="text" name="name" class="text-input" required>
+        </label>
+        <label class="auth-field">
+          <span class="caption">학교</span>
+          <input type="text" name="school" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학년</span>
+          <input type="text" name="grade" class="text-input" placeholder="예: 중2">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학생 전화번호</span>
+          <input type="tel" name="studentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field">
+          <span class="caption">학부모님 전화번호</span>
+          <input type="tel" name="parentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">주소</span>
+          <input type="text" name="address" class="text-input">
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">현재 수강 수업</span>
+          <textarea name="currentClasses" class="text-input" rows="2" placeholder="예: 수학 A반, 영어 B반"></textarea>
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">수강 수업 이력</span>
+          <textarea name="classHistory" class="text-input" rows="2" placeholder="예: 2025년 겨울방학 특강 수학 완성반"></textarea>
+        </label>
+        <label class="auth-field full-width">
+          <span class="caption">특이 사항</span>
+          <textarea name="notes" class="text-input" rows="2"></textarea>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="student-modal-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="paste-modal-overlay" hidden>
+  <div class="modal-card modal-card-wide">
+    <h2 class="heading-md">엑셀에서 붙여넣기</h2>
+    <p class="body-md placeholder-desc">엑셀에서 아래 순서로 셀 범위를 복사한 뒤 아래 칸에 붙여넣으세요 (Ctrl+V). 첫 줄이 항목명이면 자동으로 제외됩니다.</p>
+    <p class="caption">이름 · 학교 · 학년 · 학생 전화번호 · 학부모님 전화번호 · 주소 · 현재 수강 수업 · 수강 수업 이력 · 특이 사항</p>
+
+    <textarea id="paste-textarea" class="text-input" rows="6" placeholder="여기를 클릭한 뒤 Ctrl+V로 붙여넣으세요"></textarea>
+
+    <div id="paste-preview-wrap" hidden>
+      <p class="body-strong">미리보기 (<span id="paste-count">0</span>명)</p>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>학교</th>
+              <th>학년</th>
+              <th>학생 연락처</th>
+              <th>학부모님 연락처</th>
+              <th>주소</th>
+              <th>현재 수강 수업</th>
+              <th>수강 수업 이력</th>
+              <th>특이 사항</th>
+            </tr>
+          </thead>
+          <tbody id="paste-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="paste-cancel">취소</button>
+      <button type="button" class="btn-primary" id="paste-confirm" disabled>추가하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js"></script>
+<script src="../js/students.js"></script>
+<script>
+  var tbody = document.getElementById('student-table-body');
+  var searchInput = document.getElementById('student-search');
+  var overlay = document.getElementById('student-modal-overlay');
+  var modalTitle = document.getElementById('student-modal-title');
+  var form = document.getElementById('student-form');
+  var addBtn = document.getElementById('add-student-btn');
+  var cancelBtn = document.getElementById('student-modal-cancel');
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  var filterCheckboxes = document.querySelectorAll('.filter-checkbox');
+
+  function getSelectedFields() {
+    return Array.prototype.filter.call(filterCheckboxes, function (cb) { return cb.checked; })
+      .map(function (cb) { return cb.value; });
+  }
+
+  function renderTable() {
+    var students = Students.search(searchInput.value, getSelectedFields());
+
+    if (students.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">등록된 학생이 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = students.map(function (s) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+          '<td>' + escapeHtml(s.currentClasses) + '</td>' +
+          '<td class="row-actions">' +
+            '<a class="row-action view" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">자세히 보기</a>' +
+            '<button type="button" class="row-action edit" data-id="' + s.id + '">수정</button>' +
+            '<button type="button" class="row-action delete" data-id="' + s.id + '">삭제</button>' +
+          '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  function openModal(student) {
+    form.reset();
+    if (student) {
+      modalTitle.textContent = '학생 정보 수정';
+      form.id.value = student.id;
+      form.name.value = student.name;
+      form.school.value = student.school;
+      form.grade.value = student.grade;
+      form.studentPhone.value = student.studentPhone;
+      form.parentPhone.value = student.parentPhone;
+      form.address.value = student.address;
+      form.currentClasses.value = student.currentClasses;
+      form.classHistory.value = student.classHistory;
+      form.notes.value = student.notes;
+    } else {
+      modalTitle.textContent = '학생 추가';
+      form.id.value = '';
+    }
+    overlay.hidden = false;
+    form.name.focus();
+  }
+
+  function closeModal() {
+    overlay.hidden = true;
+  }
+
+  addBtn.addEventListener('click', function () { openModal(null); });
+  cancelBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeModal();
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = {
+      name: form.name.value.trim(),
+      school: form.school.value.trim(),
+      grade: form.grade.value.trim(),
+      studentPhone: form.studentPhone.value.trim(),
+      parentPhone: form.parentPhone.value.trim(),
+      address: form.address.value.trim(),
+      currentClasses: form.currentClasses.value.trim(),
+      classHistory: form.classHistory.value.trim(),
+      notes: form.notes.value.trim()
+    };
+
+    if (!data.name) {
+      form.name.focus();
+      return;
+    }
+
+    if (form.id.value) {
+      Students.update(form.id.value, data);
+    } else {
+      Students.add(data);
+    }
+
+    closeModal();
+    renderTable();
+  });
+
+  tbody.addEventListener('click', function (e) {
+    var editBtn = e.target.closest('.row-action.edit');
+    if (editBtn) {
+      openModal(Students.getById(editBtn.dataset.id));
+      return;
+    }
+    var deleteBtn = e.target.closest('.row-action.delete');
+    if (deleteBtn) {
+      var student = Students.getById(deleteBtn.dataset.id);
+      if (student && confirm(student.name + ' 학생 정보를 삭제할까요?')) {
+        Students.remove(deleteBtn.dataset.id);
+        renderTable();
+      }
+    }
+  });
+
+  searchInput.addEventListener('input', renderTable);
+  Array.prototype.forEach.call(filterCheckboxes, function (cb) {
+    cb.addEventListener('change', function () {
+      cb.closest('.filter-chip').classList.toggle('is-checked', cb.checked);
+      renderTable();
+    });
+  });
+
+  renderTable();
+
+  // ---- Paste from Excel ----
+  var pasteBtn = document.getElementById('paste-student-btn');
+  var pasteOverlay = document.getElementById('paste-modal-overlay');
+  var pasteTextarea = document.getElementById('paste-textarea');
+  var pastePreviewWrap = document.getElementById('paste-preview-wrap');
+  var pastePreviewBody = document.getElementById('paste-preview-body');
+  var pasteCount = document.getElementById('paste-count');
+  var pasteCancelBtn = document.getElementById('paste-cancel');
+  var pasteConfirmBtn = document.getElementById('paste-confirm');
+  var parsedStudents = [];
+
+  function openPasteModal() {
+    pasteTextarea.value = '';
+    parsedStudents = [];
+    pastePreviewWrap.hidden = true;
+    pasteConfirmBtn.disabled = true;
+    pasteOverlay.hidden = false;
+    pasteTextarea.focus();
+  }
+
+  function closePasteModal() {
+    pasteOverlay.hidden = true;
+  }
+
+  function updatePastePreview() {
+    parsedStudents = Students.parsePaste(pasteTextarea.value);
+
+    if (parsedStudents.length === 0) {
+      pastePreviewWrap.hidden = true;
+      pasteConfirmBtn.disabled = true;
+      return;
+    }
+
+    pasteCount.textContent = parsedStudents.length;
+    pastePreviewBody.innerHTML = parsedStudents.map(function (s) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+          '<td>' + escapeHtml(s.studentPhone) + '</td>' +
+          '<td>' + escapeHtml(s.parentPhone) + '</td>' +
+          '<td>' + escapeHtml(s.address) + '</td>' +
+          '<td>' + escapeHtml(s.currentClasses) + '</td>' +
+          '<td>' + escapeHtml(s.classHistory) + '</td>' +
+          '<td>' + escapeHtml(s.notes) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+
+    pastePreviewWrap.hidden = false;
+    pasteConfirmBtn.disabled = false;
+  }
+
+  pasteBtn.addEventListener('click', openPasteModal);
+  pasteCancelBtn.addEventListener('click', closePasteModal);
+  pasteOverlay.addEventListener('click', function (e) {
+    if (e.target === pasteOverlay) closePasteModal();
+  });
+  pasteTextarea.addEventListener('input', updatePastePreview);
+
+  pasteConfirmBtn.addEventListener('click', function () {
+    if (parsedStudents.length === 0) return;
+    Students.addMany(parsedStudents);
+    closePasteModal();
+    renderTable();
+  });
+</script>
+</body>
+</html>
