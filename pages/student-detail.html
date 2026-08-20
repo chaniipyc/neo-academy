@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 상세 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js"></script>
+<script src="../js/auth.js?v=2"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -62,10 +62,10 @@
           <span class="caption">주소</span>
           <input type="text" name="address" class="text-input">
         </label>
-        <label class="auth-field full-width">
+        <div class="auth-field full-width">
           <span class="caption">현재 수강 수업</span>
-          <textarea name="currentClasses" class="text-input" rows="2" placeholder="예: 수학 A반, 영어 B반"></textarea>
-        </label>
+          <div class="search-filters" id="class-checkbox-group"></div>
+        </div>
         <label class="auth-field full-width">
           <span class="caption">수강 수업 이력</span>
           <textarea name="classHistory" class="text-input" rows="2" placeholder="예: 2025년 겨울방학 특강 수학 완성반"></textarea>
@@ -86,8 +86,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js"></script>
-<script src="../js/students.js"></script>
+<script src="../js/layout.js?v=2"></script>
+<script src="../js/students.js?v=2"></script>
+<script src="../js/classes.js?v=2"></script>
 <script>
   var studentId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -95,11 +96,56 @@
   var overlay = document.getElementById('student-modal-overlay');
   var form = document.getElementById('student-form');
   var cancelBtn = document.getElementById('student-modal-cancel');
+  var classCheckboxGroup = document.getElementById('class-checkbox-group');
+  var previousClasses = [];
 
   function escapeHtml(str) {
     var div = document.createElement('div');
     div.textContent = str || '';
     return div.innerHTML;
+  }
+
+  function renderClassCheckboxes(selectedNames) {
+    var names = Classes.getClassNames();
+    classCheckboxGroup.innerHTML = names.map(function (name) {
+      var isChecked = selectedNames.indexOf(name) !== -1;
+      return (
+        '<label class="filter-chip' + (isChecked ? ' is-checked' : '') + '">' +
+          '<input type="checkbox" class="class-checkbox" value="' + escapeHtml(name) + '"' + (isChecked ? ' checked' : '') + '>' +
+          '<span>' + escapeHtml(name) + '</span>' +
+        '</label>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(classCheckboxGroup.querySelectorAll('.class-checkbox'), function (cb) {
+      cb.addEventListener('change', function () {
+        cb.closest('.filter-chip').classList.toggle('is-checked', cb.checked);
+      });
+    });
+  }
+
+  function getCheckedClasses() {
+    return Array.prototype.filter.call(classCheckboxGroup.querySelectorAll('.class-checkbox'), function (cb) { return cb.checked; })
+      .map(function (cb) { return cb.value; });
+  }
+
+  function syncClassRosters(sid, oldNames, newNames) {
+    oldNames.filter(function (n) { return newNames.indexOf(n) === -1; }).forEach(function (n) {
+      var cls = Classes.getByName(n);
+      if (cls) Classes.removeStudentFromClass(cls.id, sid);
+    });
+    newNames.filter(function (n) { return oldNames.indexOf(n) === -1; }).forEach(function (n) {
+      var cls = Classes.getByName(n);
+      if (cls) Classes.addStudentToClass(cls.id, sid);
+    });
+  }
+
+  function removeStudentFromAllClasses(sid) {
+    Classes.getAll().forEach(function (cls) {
+      if (cls.studentIds.indexOf(sid) !== -1) {
+        Classes.removeStudentFromClass(cls.id, sid);
+      }
+    });
   }
 
   function field(label, value, wide) {
@@ -137,6 +183,7 @@
     });
     document.getElementById('detail-delete-btn').addEventListener('click', function () {
       if (confirm(s.name + ' 학생 정보를 삭제할까요?')) {
+        removeStudentFromAllClasses(s.id);
         Students.remove(s.id);
         location.href = './students.html';
       }
@@ -152,9 +199,10 @@
     form.studentPhone.value = student.studentPhone;
     form.parentPhone.value = student.parentPhone;
     form.address.value = student.address;
-    form.currentClasses.value = student.currentClasses;
     form.classHistory.value = student.classHistory;
     form.notes.value = student.notes;
+    previousClasses = Students.splitClasses(student.currentClasses);
+    renderClassCheckboxes(previousClasses);
     overlay.hidden = false;
     form.name.focus();
   }
@@ -170,6 +218,7 @@
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    var selectedClasses = getCheckedClasses();
     var data = {
       name: form.name.value.trim(),
       school: form.school.value.trim(),
@@ -177,7 +226,7 @@
       studentPhone: form.studentPhone.value.trim(),
       parentPhone: form.parentPhone.value.trim(),
       address: form.address.value.trim(),
-      currentClasses: form.currentClasses.value.trim(),
+      currentClasses: Students.joinClasses(selectedClasses),
       classHistory: form.classHistory.value.trim(),
       notes: form.notes.value.trim()
     };
@@ -188,6 +237,7 @@
     }
 
     var updated = Students.update(form.id.value, data);
+    syncClassRosters(form.id.value, previousClasses, selectedClasses);
     closeModal();
     if (updated) renderStudent(updated);
   });

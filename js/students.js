@@ -82,6 +82,14 @@
     return getAll().filter(function (s) { return s.id === id; })[0] || null;
   }
 
+  function splitClasses(str) {
+    return (str || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  function joinClasses(list) {
+    return (list || []).join(', ');
+  }
+
   var SEARCHABLE_FIELDS = ['name', 'school', 'grade', 'currentClasses'];
 
   function search(query, fields) {
@@ -219,6 +227,8 @@
     update: update,
     remove: remove,
     getById: getById,
-    search: search
+    search: search,
+    splitClasses: splitClasses,
+    joinClasses: joinClasses
   };
 })(window);

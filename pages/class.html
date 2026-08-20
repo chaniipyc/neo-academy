@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>반별 관리 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/auth.js?v=2"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'class';
+  Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="heading-lg">반별 관리</h1>
+    <p class="body-md placeholder-desc">반을 생성하고 학생을 배정하거나 완강 처리할 수 있습니다.</p>
+  </div>
+
+  <div class="class-toolbar">
+    <button type="button" class="btn-primary" id="add-class-btn">+ 반 추가</button>
+  </div>
+
+  <div class="class-list" id="class-list"></div>
+
+  <div class="class-history-toolbar">
+    <button type="button" class="btn-secondary" id="history-toggle-btn">History</button>
+  </div>
+</main>
+
+<div class="modal-overlay" id="class-modal-overlay" hidden>
+  <div class="modal-card">
+    <h2 class="heading-md">반 추가</h2>
+    <form id="class-form">
+      <label class="auth-field">
+        <span class="caption">반 이름</span>
+        <input type="text" name="className" class="text-input" placeholder="예: 수학D" required>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="class-modal-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="student-select-overlay" hidden>
+  <div class="modal-card modal-card-wide">
+    <h2 class="heading-md" id="student-select-title">학생 추가</h2>
+    <input type="search" id="student-select-search" class="text-input" placeholder="이름, 학교, 학년으로 검색">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>이름</th>
+            <th>학교</th>
+            <th>학년</th>
+          </tr>
+        </thead>
+        <tbody id="student-select-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="student-select-cancel">취소</button>
+      <button type="button" class="btn-primary" id="student-select-confirm">추가하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js?v=2"></script>
+<script src="../js/students.js?v=2"></script>
+<script src="../js/classes.js?v=2"></script>
+<script>
+  var classListEl = document.getElementById('class-list');
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function updateStudentFields(student, changes) {
+    var data = {
+      name: student.name,
+      school: student.school,
+      grade: student.grade,
+      studentPhone: student.studentPhone,
+      parentPhone: student.parentPhone,
+      address: student.address,
+      currentClasses: student.currentClasses,
+      classHistory: student.classHistory,
+      notes: student.notes
+    };
+    Object.keys(changes).forEach(function (key) { data[key] = changes[key]; });
+    return Students.update(student.id, data);
+  }
+
+  var expandedClassIds = {};
+  var showHistory = false;
+  var historyToggleBtn = document.getElementById('history-toggle-btn');
+
+  function render() {
+    if (showHistory) {
+      renderHistory();
+    } else {
+      renderClasses();
+    }
+    historyToggleBtn.textContent = showHistory ? '← 반별 관리로 돌아가기' : 'History';
+  }
+
+  function renderHistory() {
+    var completed = Classes.getCompleted();
+
+    if (completed.length === 0) {
+      classListEl.innerHTML = '<p class="table-empty">완강 처리된 반이 없습니다.</p>';
+      return;
+    }
+
+    classListEl.innerHTML = completed.map(function (cls) {
+      var count = (cls.completedStudentIds || []).length;
+      return (
+        '<div class="class-card">' +
+          '<div class="class-card-header">' +
+            '<h2 class="heading-md">' + escapeHtml(cls.name) + '<span class="caption class-count"> · 완강 ' + count + '명</span></h2>' +
+            '<div class="class-card-actions">' +
+              '<button type="button" class="btn-secondary class-revert-btn" data-class-id="' + cls.id + '">되돌리기</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function renderClasses() {
+    var classes = Classes.getActive();
+
+    if (classes.length === 0) {
+      classListEl.innerHTML = '<p class="table-empty">등록된 반이 없습니다.</p>';
+      return;
+    }
+
+    classListEl.innerHTML = classes.map(function (cls) {
+      var students = cls.studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+      students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+      var isExpanded = !!expandedClassIds[cls.id];
+
+      var rows = students.length === 0
+        ? '<tr><td colspan="3" class="table-empty">등록된 학생이 없습니다.</td></tr>'
+        : students.map(function (s) {
+            return (
+              '<tr>' +
+                '<td>' + escapeHtml(s.name) + '</td>' +
+                '<td>' + escapeHtml(s.school) + '</td>' +
+                '<td>' + escapeHtml(s.grade) + '</td>' +
+              '</tr>'
+            );
+          }).join('');
+
+      return (
+        '<div class="class-card">' +
+          '<div class="class-card-header">' +
+            '<h2 class="heading-md">' + escapeHtml(cls.name) + '<span class="caption class-count"> · ' + students.length + '명</span></h2>' +
+            '<div class="class-card-actions">' +
+              '<button type="button" class="btn-secondary class-toggle-btn" data-class-id="' + cls.id + '">' + (isExpanded ? '접어서 보기' : '펼쳐서 보기') + '</button>' +
+              '<button type="button" class="btn-secondary class-add-student-btn" data-class-id="' + cls.id + '">+ 학생 추가</button>' +
+              '<button type="button" class="btn-complete class-complete-btn" data-class-id="' + cls.id + '">완강처리</button>' +
+            '</div>' +
+          '</div>' +
+          (isExpanded ?
+            '<div class="table-scroll">' +
+              '<table class="data-table">' +
+                '<thead><tr><th>이름</th><th>학교</th><th>학년</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+              '</table>' +
+            '</div>'
+          : '') +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  // ---- 반 추가 ----
+  var classOverlay = document.getElementById('class-modal-overlay');
+  var classForm = document.getElementById('class-form');
+
+  document.getElementById('add-class-btn').addEventListener('click', function () {
+    classForm.reset();
+    classOverlay.hidden = false;
+    classForm.className.focus();
+  });
+
+  document.getElementById('class-modal-cancel').addEventListener('click', function () {
+    classOverlay.hidden = true;
+  });
+
+  classOverlay.addEventListener('click', function (e) {
+    if (e.target === classOverlay) classOverlay.hidden = true;
+  });
+
+  classForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var result = Classes.add(classForm.className.value);
+    if (!result.ok) {
+      alert(result.message);
+      return;
+    }
+    classOverlay.hidden = true;
+    renderClasses();
+  });
+
+  // ---- 완강처리(반 전체) / 학생 추가 / 펼쳐보기 버튼 ----
+  classListEl.addEventListener('click', function (e) {
+    var completeBtn = e.target.closest('.class-complete-btn');
+    if (completeBtn) {
+      var classId = completeBtn.dataset.classId;
+      var cls = Classes.getById(classId);
+      if (!cls) return;
+      var students = cls.studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+      var confirmMsg = students.length === 0
+        ? '"' + cls.name + '" 반을 완강 처리할까요? (현재 등록된 학생 없음)'
+        : '"' + cls.name + '" 반을 완강 처리할까요? 현재 학생 ' + students.length + '명이 함께 처리됩니다.';
+      if (!confirm(confirmMsg)) return;
+
+      students.forEach(function (student) {
+        var current = Students.splitClasses(student.currentClasses).filter(function (c) { return c !== cls.name; });
+        var history = Students.splitClasses(student.classHistory);
+        if (history.indexOf(cls.name) === -1) history.push(cls.name);
+        updateStudentFields(student, {
+          currentClasses: Students.joinClasses(current),
+          classHistory: Students.joinClasses(history)
+        });
+      });
+
+      Classes.completeClass(classId);
+      render();
+      return;
+    }
+
+    var toggleBtn = e.target.closest('.class-toggle-btn');
+    if (toggleBtn) {
+      var toggleClassId = toggleBtn.dataset.classId;
+      expandedClassIds[toggleClassId] = !expandedClassIds[toggleClassId];
+      renderClasses();
+      return;
+    }
+
+    var addStudentBtn = e.target.closest('.class-add-student-btn');
+    if (addStudentBtn) {
+      openStudentSelect(addStudentBtn.dataset.classId);
+      return;
+    }
+
+    var revertBtn = e.target.closest('.class-revert-btn');
+    if (revertBtn) {
+      var revertClassId = revertBtn.dataset.classId;
+      var revertCls = Classes.getById(revertClassId);
+      if (!revertCls) return;
+      var completedIds = revertCls.completedStudentIds || [];
+      if (!confirm('"' + revertCls.name + '" 반을 되돌릴까요? 완강 처리됐던 학생 ' + completedIds.length + '명이 다시 현재 수강 강좌로 돌아갑니다.')) return;
+
+      completedIds.forEach(function (studentId) {
+        var student = Students.getById(studentId);
+        if (!student) return;
+        var history = Students.splitClasses(student.classHistory).filter(function (c) { return c !== revertCls.name; });
+        var current = Students.splitClasses(student.currentClasses);
+        if (current.indexOf(revertCls.name) === -1) current.push(revertCls.name);
+        updateStudentFields(student, {
+          currentClasses: Students.joinClasses(current),
+          classHistory: Students.joinClasses(history)
+        });
+      });
+
+      Classes.revertClass(revertClassId);
+      showHistory = false;
+      render();
+    }
+  });
+
+  historyToggleBtn.addEventListener('click', function () {
+    showHistory = !showHistory;
+    render();
+  });
+
+  // ---- 학생 추가 모달 ----
+  var selectOverlay = document.getElementById('student-select-overlay');
+  var selectTitle = document.getElementById('student-select-title');
+  var selectSearch = document.getElementById('student-select-search');
+  var selectBody = document.getElementById('student-select-body');
+  var selectConfirm = document.getElementById('student-select-confirm');
+  var selectCancel = document.getElementById('student-select-cancel');
+  var activeClassId = null;
+
+  function openStudentSelect(classId) {
+    activeClassId = classId;
+    var cls = Classes.getById(classId);
+    if (!cls) return;
+    selectTitle.textContent = cls.name + ' · 학생 추가';
+    selectSearch.value = '';
+    renderStudentSelect();
+    selectOverlay.hidden = false;
+    selectSearch.focus();
+  }
+
+  function renderStudentSelect() {
+    var cls = Classes.getById(activeClassId);
+    if (!cls) return;
+    var query = selectSearch.value.trim().toLowerCase();
+    var candidates = Students.getAll().filter(function (s) {
+      return cls.studentIds.indexOf(s.id) === -1;
+    });
+    if (query) {
+      candidates = candidates.filter(function (s) {
+        return [s.name, s.school, s.grade].some(function (f) {
+          return (f || '').toLowerCase().indexOf(query) !== -1;
+        });
+      });
+    }
+
+    if (candidates.length === 0) {
+      selectBody.innerHTML = '<tr><td colspan="4" class="table-empty">추가할 수 있는 학생이 없습니다.</td></tr>';
+      return;
+    }
+
+    selectBody.innerHTML = candidates.map(function (s) {
+      return (
+        '<tr>' +
+          '<td><input type="checkbox" class="student-select-checkbox" value="' + s.id + '"></td>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  selectSearch.addEventListener('input', renderStudentSelect);
+  selectCancel.addEventListener('click', function () { selectOverlay.hidden = true; });
+  selectOverlay.addEventListener('click', function (e) {
+    if (e.target === selectOverlay) selectOverlay.hidden = true;
+  });
+
+  selectConfirm.addEventListener('click', function () {
+    var cls = Classes.getById(activeClassId);
+    if (!cls) return;
+    var checked = Array.prototype.filter.call(
+      selectBody.querySelectorAll('.student-select-checkbox'),
+      function (cb) { return cb.checked; }
+    ).map(function (cb) { return cb.value; });
+
+    checked.forEach(function (studentId) {
+      Classes.addStudentToClass(activeClassId, studentId);
+      var student = Students.getById(studentId);
+      var current = Students.splitClasses(student.currentClasses);
+      if (current.indexOf(cls.name) === -1) {
+        current.push(cls.name);
+        updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
+      }
+    });
+
+    selectOverlay.hidden = true;
+    renderClasses();
+  });
+
+  render();
+</script>
+</body>
+</html>

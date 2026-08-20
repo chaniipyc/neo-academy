@@ -249,54 +249,10 @@ button {
 }
 
 .nav-trigger:hover,
-.nav-item:hover .nav-trigger,
-.nav-item:focus-within .nav-trigger,
+.nav-trigger:focus-visible,
 .nav-trigger.is-active {
   color: var(--color-primary);
   background: var(--color-primary-soft);
-}
-
-.dropdown {
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  background: var(--color-canvas);
-  border: 1px solid var(--color-hairline-soft);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: var(--space-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 160px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.15s var(--ease-standard), transform 0.15s var(--ease-standard), visibility 0.15s;
-  margin-top: var(--space-sm);
-}
-
-.nav-item:hover .dropdown,
-.nav-item:focus-within .dropdown {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-.dropdown-link {
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
-  color: var(--color-ink);
-  font-size: 15px;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
-}
-
-.dropdown-link:hover,
-.dropdown-link:focus-visible {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
 }
 
 /* ---------- Footer ---------- */
@@ -820,6 +776,92 @@ textarea.text-input {
   padding: var(--space-xxl);
 }
 
+/* ---------- Class management page ---------- */
+.class-toolbar {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-lg);
+}
+
+.class-list {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.class-history-toolbar {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-xxl);
+}
+
+.class-card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.class-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.class-count {
+  font-weight: 400;
+}
+
+.class-title-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+}
+
+.class-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.btn-complete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eafaf3;
+  color: var(--color-success);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 11px 22px;
+  border-radius: var(--radius-pill);
+  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
+}
+
+.btn-complete:hover {
+  background: var(--color-success);
+  color: var(--color-on-primary);
+}
+
 /* ---------- Student detail page ---------- */
 .detail-card {
   width: 100%;
@@ -941,9 +983,6 @@ textarea.text-input {
   .nav-trigger {
     padding: 10px 16px;
     font-size: 15px;
-  }
-  .dropdown {
-    padding: var(--space-sm);
   }
   .hero-title {
     font-size: 30px;

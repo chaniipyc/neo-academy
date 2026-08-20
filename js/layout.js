@@ -4,31 +4,9 @@
   var session = window.Auth ? window.Auth.getSession() : null;
 
   var categories = [
-    {
-      key: 'students',
-      label: '학생 정보',
-      items: [
-        { label: '학생 정보', href: root + 'pages/students.html' }
-      ]
-    },
-    {
-      key: 'counsel',
-      label: '상담',
-      items: [
-        { label: 'a', href: root + 'pages/counsel-a.html' },
-        { label: 'b', href: root + 'pages/counsel-b.html' }
-      ]
-    },
-    {
-      key: 'class',
-      label: '반별 관리',
-      items: [
-        { label: 'A', href: root + 'pages/class-a.html' },
-        { label: 'B', href: root + 'pages/class-b.html' },
-        { label: 'C', href: root + 'pages/class-c.html' },
-        { label: 'D', href: root + 'pages/class-d.html' }
-      ]
-    }
+    { key: 'students', label: '학생 정보', href: root + 'pages/students.html' },
+    { key: 'counsel', label: '상담', href: root + 'pages/counsel.html' },
+    { key: 'class', label: '반별 관리', href: root + 'pages/class.html' }
   ];
 
   function escapeHtml(str) {
@@ -62,16 +40,11 @@
     if (!mount) return;
 
     var navItemsHtml = categories.map(function (cat) {
-      var dropdownLinks = cat.items.map(function (item) {
-        return '<a class="dropdown-link" href="' + item.href + '">' + item.label + '</a>';
-      }).join('');
-
       var activeClass = active === cat.key ? ' is-active' : '';
 
       return (
         '<li class="nav-item">' +
-          '<button type="button" class="nav-trigger' + activeClass + '">' + cat.label + '</button>' +
-          '<div class="dropdown">' + dropdownLinks + '</div>' +
+          '<a class="nav-trigger' + activeClass + '" href="' + cat.href + '">' + cat.label + '</a>' +
         '</li>'
       );
     }).join('');
@@ -99,7 +72,7 @@
     }
 
     if (!session) {
-      var links = mount.querySelectorAll('.dropdown-link');
+      var links = mount.querySelectorAll('.nav-trigger');
       for (var i = 0; i < links.length; i++) {
         links[i].addEventListener('click', function (e) {
           e.preventDefault();
