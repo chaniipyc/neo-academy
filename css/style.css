@@ -314,8 +314,33 @@ button {
   margin-bottom: var(--space-md);
 }
 
-.detail-topbar .btn-secondary {
-  margin-top: 0;
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 4px 2px;
+  margin: 0;
+  color: var(--color-ink-mute);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-standard);
+}
+
+.back-btn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.back-btn:focus-visible {
+  outline: none;
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .breadcrumb {
@@ -363,76 +388,80 @@ button {
   color: var(--color-ink-mute);
 }
 
-.btn-secondary {
-  margin-top: var(--space-md);
-  display: inline-flex;
-  align-items: center;
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  padding: 11px 26px;
-  border: none;
-  cursor: pointer;
-  border-radius: var(--radius-pill);
-  transition: background-color 0.15s var(--ease-standard), box-shadow 0.15s var(--ease-standard), transform 0.15s var(--ease-standard);
-}
-
-.btn-secondary:hover {
-  background: #ecdff1;
-  box-shadow: var(--shadow-xs);
-}
-
-.btn-primary {
+.btn-secondary,
+.btn-primary,
+.btn-danger,
+.btn-complete {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  gap: 6px;
+  border: 1.5px solid transparent;
   cursor: pointer;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
   font-family: inherit;
   font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.2px;
-  padding: 13px 28px;
-  border-radius: var(--radius-pill);
+  letter-spacing: 0.1px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-xs);
-  transition: background-color 0.15s var(--ease-standard), box-shadow 0.15s var(--ease-standard), transform 0.15s var(--ease-standard);
+  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard), border-color 0.15s var(--ease-standard), box-shadow 0.15s var(--ease-standard), transform 0.15s var(--ease-standard);
 }
 
-.btn-primary:hover {
-  background: var(--color-primary-press);
+.btn-secondary:hover,
+.btn-primary:hover,
+.btn-danger:hover,
+.btn-complete:hover {
   box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
-.btn-primary:active {
+.btn-secondary:active,
+.btn-primary:active,
+.btn-danger:active,
+.btn-complete:active {
   transform: translateY(0);
   box-shadow: var(--shadow-xs);
 }
 
+.btn-secondary:focus-visible,
+.btn-primary:focus-visible,
+.btn-danger:focus-visible,
+.btn-complete:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.btn-secondary {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.btn-secondary:hover {
+  background: #ecdff1;
+  border-color: var(--color-primary-soft);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-press);
+  border-color: var(--color-primary-press);
+}
+
 .btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   background: #fdf1ec;
   color: var(--color-error);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  padding: 12px 26px;
-  border-radius: var(--radius-pill);
-  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
 }
 
 .btn-danger:hover {
   background: var(--color-error);
   color: var(--color-on-primary);
+  border-color: var(--color-error);
 }
 
 .text-input {
@@ -851,25 +880,14 @@ textarea.text-input {
 }
 
 .btn-complete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   background: #eafaf3;
   color: var(--color-success);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  padding: 11px 22px;
-  border-radius: var(--radius-pill);
-  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
 }
 
 .btn-complete:hover {
   background: var(--color-success);
   color: var(--color-on-primary);
+  border-color: var(--color-success);
 }
 
 /* ---------- Attendance / Test tables ---------- */
@@ -959,10 +977,15 @@ td.record-cell {
 
 .btn-tiny {
   width: 100%;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 12px;
-  margin-top: 0;
+  gap: 4px;
+  border-radius: var(--radius-sm);
   box-sizing: border-box;
+}
+
+.btn-tiny:hover {
+  transform: none;
 }
 
 .header-btn-row {
