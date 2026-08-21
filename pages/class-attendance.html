@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출결 관리 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/auth.js?v=5"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'class';
+  Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="detail-topbar">
+    <button type="button" class="btn-secondary" id="back-btn">← 뒤로</button>
+  </div>
+
+  <p class="breadcrumb body-md">
+    <a href="./class.html">반별 관리</a>
+    <span class="crumb-current" id="breadcrumb-name">/ 반 / 출결 관리</span>
+  </p>
+
+  <div class="page-header">
+    <h1 class="heading-lg" id="page-title">출결 관리</h1>
+    <p class="body-md placeholder-desc">날짜 칸에 날짜를 입력하면 새 열이 생깁니다. 칸을 직접 클릭해 출석 여부를 자유롭게 입력하세요. "일괄 출석"은 그 날짜의 전원을 출석으로 채웁니다.</p>
+  </div>
+
+  <div class="record-table-wrap" id="record-table-wrap">
+    <p class="body-md">불러오는 중입니다...</p>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js?v=5"></script>
+<script src="../js/students.js?v=5"></script>
+<script src="../js/classes.js?v=5"></script>
+<script>
+  var classId = new URLSearchParams(location.search).get('id');
+  var wrap = document.getElementById('record-table-wrap');
+  var breadcrumbName = document.getElementById('breadcrumb-name');
+  var pageTitle = document.getElementById('page-title');
+  var backBtn = document.getElementById('back-btn');
+
+  backBtn.addEventListener('click', function () {
+    if (history.length > 1) {
+      history.back();
+    } else {
+      location.href = './class-detail.html?id=' + encodeURIComponent(classId);
+    }
+  });
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function render() {
+    var cls = Classes.getById(classId);
+    if (!cls) {
+      wrap.innerHTML = '<p class="body-md">반 정보를 찾을 수 없습니다.</p>';
+      return;
+    }
+
+    breadcrumbName.textContent = '/ ' + cls.name + ' / 출결 관리';
+    pageTitle.textContent = cls.name + ' · 출결 관리';
+
+    var studentIds = Classes.rosterIds(cls);
+    var students = studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+    students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+
+    if (students.length === 0) {
+      wrap.innerHTML = '<p class="table-empty">등록된 학생이 없습니다.</p>';
+      return;
+    }
+
+    var dates = Classes.getAttendanceDates(classId);
+
+    var thead =
+      '<tr><th>이름</th>' +
+        dates.map(function (d) {
+          return (
+            '<th>' +
+              '<div class="exam-header">' +
+                '<span>' + d + '</span>' +
+                '<div class="header-btn-row">' +
+                  '<button type="button" class="btn-secondary btn-tiny bulk-attend-col-btn" data-date="' + d + '">일괄 출석</button>' +
+                  '<button type="button" class="btn-danger btn-tiny attendance-delete-btn" data-date="' + d + '">삭제</button>' +
+                '</div>' +
+              '</div>' +
+            '</th>'
+          );
+        }).join('') +
+        '<th class="new-col-header"><div class="exam-header"><input type="date" id="new-date-input" class="exam-date-input"></div></th>' +
+      '</tr>';
+
+    var tbody = students.map(function (s) {
+      var cells = dates.map(function (d) {
+        var value = Classes.getAttendance(classId, d)[s.id] || '';
+        return '<td class="record-cell"><input type="text" class="attendance-input" data-date="' + d + '" data-student-id="' + s.id + '" value="' + escapeHtml(value) + '"></td>';
+      }).join('');
+      return '<tr><td>' + escapeHtml(s.name) + '</td>' + cells + '<td class="new-col-cell"></td></tr>';
+    }).join('');
+
+    wrap.innerHTML =
+      '<div class="table-scroll">' +
+        '<table class="data-table sticky-first-col">' +
+          '<thead>' + thead + '</thead>' +
+          '<tbody>' + tbody + '</tbody>' +
+        '</table>' +
+      '</div>';
+
+    var studentIdOrder = students.map(function (s) { return s.id; });
+
+    wrap.querySelectorAll('.attendance-input').forEach(function (input) {
+      var committed = false;
+
+      function commit() {
+        if (committed) return;
+        committed = true;
+        Classes.setAttendance(classId, input.dataset.date, input.dataset.studentId, input.value.trim());
+      }
+
+      input.addEventListener('change', function () {
+        commit();
+      });
+
+      input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var date = input.dataset.date;
+        var idx = studentIdOrder.indexOf(input.dataset.studentId);
+        var nextStudentId = (idx !== -1 && idx < studentIdOrder.length - 1) ? studentIdOrder[idx + 1] : null;
+
+        commit();
+
+        if (nextStudentId) {
+          var nextInput = wrap.querySelector('.attendance-input[data-date="' + date + '"][data-student-id="' + nextStudentId + '"]');
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.select();
+          }
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.bulk-attend-col-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        Classes.bulkMarkAttendance(classId, btn.dataset.date, '출석');
+        render();
+      });
+    });
+
+    wrap.querySelectorAll('.attendance-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!confirm(btn.dataset.date + ' 출결 기록을 삭제할까요?')) return;
+        Classes.removeAttendanceDate(classId, btn.dataset.date);
+        render();
+      });
+    });
+
+    var newDateInput = document.getElementById('new-date-input');
+    newDateInput.addEventListener('change', function () {
+      if (!newDateInput.value) return;
+      Classes.addAttendanceDate(classId, newDateInput.value);
+      render();
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>

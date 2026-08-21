@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반별 관리 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=2"></script>
+<script src="../js/auth.js?v=5"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'class';
@@ -75,9 +75,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=2"></script>
-<script src="../js/students.js?v=2"></script>
-<script src="../js/classes.js?v=2"></script>
+<script src="../js/layout.js?v=5"></script>
+<script src="../js/students.js?v=5"></script>
+<script src="../js/classes.js?v=5"></script>
 <script>
   var classListEl = document.getElementById('class-list');
 
@@ -131,6 +131,8 @@
           '<div class="class-card-header">' +
             '<h2 class="heading-md">' + escapeHtml(cls.name) + '<span class="caption class-count"> · 완강 ' + count + '명</span></h2>' +
             '<div class="class-card-actions">' +
+              '<a class="btn-secondary" href="./class-attendance.html?id=' + cls.id + '">출결관리</a>' +
+              '<a class="btn-secondary" href="./class-test.html?id=' + cls.id + '">테스트</a>' +
               '<button type="button" class="btn-secondary class-revert-btn" data-class-id="' + cls.id + '">되돌리기</button>' +
             '</div>' +
           '</div>' +
@@ -157,7 +159,7 @@
         : students.map(function (s) {
             return (
               '<tr>' +
-                '<td>' + escapeHtml(s.name) + '</td>' +
+                '<td><a class="cell-link" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">' + escapeHtml(s.name) + '</a></td>' +
                 '<td>' + escapeHtml(s.school) + '</td>' +
                 '<td>' + escapeHtml(s.grade) + '</td>' +
               '</tr>'
@@ -171,6 +173,8 @@
             '<div class="class-card-actions">' +
               '<button type="button" class="btn-secondary class-toggle-btn" data-class-id="' + cls.id + '">' + (isExpanded ? '접어서 보기' : '펼쳐서 보기') + '</button>' +
               '<button type="button" class="btn-secondary class-add-student-btn" data-class-id="' + cls.id + '">+ 학생 추가</button>' +
+              '<a class="btn-secondary" href="./class-attendance.html?id=' + cls.id + '">출결관리</a>' +
+              '<a class="btn-secondary" href="./class-test.html?id=' + cls.id + '">테스트</a>' +
               '<button type="button" class="btn-complete class-complete-btn" data-class-id="' + cls.id + '">완강처리</button>' +
             '</div>' +
           '</div>' +

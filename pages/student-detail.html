@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 상세 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=2"></script>
+<script src="../js/auth.js?v=5"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -18,7 +18,7 @@
 
 <main class="page-main">
   <div class="detail-topbar">
-    <a class="btn-secondary" href="./students.html">← 목록으로</a>
+    <button type="button" class="btn-secondary" id="back-btn">← 뒤로</button>
   </div>
 
   <p class="breadcrumb body-md">
@@ -86,12 +86,21 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=2"></script>
-<script src="../js/students.js?v=2"></script>
-<script src="../js/classes.js?v=2"></script>
+<script src="../js/layout.js?v=5"></script>
+<script src="../js/students.js?v=5"></script>
+<script src="../js/classes.js?v=5"></script>
 <script>
   var studentId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
+  var backBtn = document.getElementById('back-btn');
+
+  backBtn.addEventListener('click', function () {
+    if (history.length > 1) {
+      history.back();
+    } else {
+      location.href = './students.html';
+    }
+  });
   var breadcrumbName = document.getElementById('detail-breadcrumb-name');
   var overlay = document.getElementById('student-modal-overlay');
   var form = document.getElementById('student-form');
@@ -157,6 +166,25 @@
     );
   }
 
+  function renderClassLinks(classesStr) {
+    var names = Students.splitClasses(classesStr);
+    if (names.length === 0) return '<span class="detail-empty">-</span>';
+    return names.map(function (name) {
+      var cls = Classes.getByName(name);
+      if (!cls) return escapeHtml(name);
+      return '<a class="cell-link" href="./class-detail.html?id=' + encodeURIComponent(cls.id) + '">' + escapeHtml(name) + '</a>';
+    }).join(', ');
+  }
+
+  function classField(label, value, wide) {
+    return (
+      '<div class="detail-item' + (wide ? ' full-width' : '') + '">' +
+        '<span class="detail-label">' + label + '</span>' +
+        '<span class="detail-value">' + renderClassLinks(value) + '</span>' +
+      '</div>'
+    );
+  }
+
   function renderStudent(s) {
     breadcrumbName.textContent = '/ ' + s.name;
 
@@ -169,7 +197,7 @@
         field('학생 전화번호', s.studentPhone) +
         field('학부모님 전화번호', s.parentPhone) +
         field('주소', s.address, true) +
-        field('현재 수강 수업', s.currentClasses, true) +
+        classField('현재 수강 수업', s.currentClasses, true) +
         field('수강 수업 이력', s.classHistory, true) +
         field('특이 사항', s.notes, true) +
       '</div>' +

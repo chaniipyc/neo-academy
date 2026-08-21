@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>반 상세 정보 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/auth.js?v=5"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'class';
+  Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="detail-topbar">
+    <button type="button" class="btn-secondary" id="back-btn">← 뒤로</button>
+  </div>
+
+  <p class="breadcrumb body-md">
+    <a href="./class.html">반별 관리</a>
+    <span class="crumb-current" id="detail-breadcrumb-name">/ 반</span>
+  </p>
+
+  <div class="detail-card" id="detail-card">
+    <p class="body-md">반 정보를 불러오는 중입니다...</p>
+  </div>
+</main>
+
+<div class="modal-overlay" id="student-select-overlay" hidden>
+  <div class="modal-card modal-card-wide">
+    <h2 class="heading-md" id="student-select-title">학생 추가</h2>
+    <input type="search" id="student-select-search" class="text-input" placeholder="이름, 학교, 학년으로 검색">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>이름</th>
+            <th>학교</th>
+            <th>학년</th>
+          </tr>
+        </thead>
+        <tbody id="student-select-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="student-select-cancel">취소</button>
+      <button type="button" class="btn-primary" id="student-select-confirm">추가하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js?v=5"></script>
+<script src="../js/students.js?v=5"></script>
+<script src="../js/classes.js?v=5"></script>
+<script>
+  var classId = new URLSearchParams(location.search).get('id');
+  var detailCard = document.getElementById('detail-card');
+  var breadcrumbName = document.getElementById('detail-breadcrumb-name');
+  var backBtn = document.getElementById('back-btn');
+
+  backBtn.addEventListener('click', function () {
+    if (history.length > 1) {
+      history.back();
+    } else {
+      location.href = './class.html';
+    }
+  });
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function updateStudentFields(student, changes) {
+    var data = {
+      name: student.name,
+      school: student.school,
+      grade: student.grade,
+      studentPhone: student.studentPhone,
+      parentPhone: student.parentPhone,
+      address: student.address,
+      currentClasses: student.currentClasses,
+      classHistory: student.classHistory,
+      notes: student.notes
+    };
+    Object.keys(changes).forEach(function (key) { data[key] = changes[key]; });
+    return Students.update(student.id, data);
+  }
+
+  function studentRows(studentIds) {
+    var students = studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+    students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+
+    if (students.length === 0) {
+      return '<tr><td colspan="3" class="table-empty">등록된 학생이 없습니다.</td></tr>';
+    }
+
+    return students.map(function (s) {
+      return (
+        '<tr>' +
+          '<td><a class="cell-link" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">' + escapeHtml(s.name) + '</a></td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  function renderClass(cls) {
+    breadcrumbName.textContent = '/ ' + cls.name;
+    var isCompleted = cls.status === 'completed';
+    var rosterIds = isCompleted ? (cls.completedStudentIds || []) : cls.studentIds;
+
+    detailCard.innerHTML =
+      '<div class="detail-header">' +
+        '<h1 class="heading-lg">' + escapeHtml(cls.name) + '</h1>' +
+        '<p class="caption">' + (isCompleted ? '완강 처리됨 · ' : '') + rosterIds.length + '명</p>' +
+      '</div>' +
+      '<div class="table-scroll">' +
+        '<table class="data-table">' +
+          '<thead><tr><th>이름</th><th>학교</th><th>학년</th></tr></thead>' +
+          '<tbody>' + studentRows(rosterIds) + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="detail-actions">' +
+        '<a class="btn-secondary" href="./class-attendance.html?id=' + cls.id + '">출결관리</a>' +
+        '<a class="btn-secondary" href="./class-test.html?id=' + cls.id + '">테스트</a>' +
+        (isCompleted
+          ? '<button type="button" class="btn-secondary" id="revert-btn">되돌리기</button>'
+          : '<button type="button" class="btn-secondary" id="add-student-btn">+ 학생 추가</button>' +
+            '<button type="button" class="btn-complete" id="complete-btn">완강처리</button>') +
+      '</div>';
+
+    if (isCompleted) {
+      document.getElementById('revert-btn').addEventListener('click', function () {
+        var completedIds = cls.completedStudentIds || [];
+        if (!confirm('"' + cls.name + '" 반을 되돌릴까요? 완강 처리됐던 학생 ' + completedIds.length + '명이 다시 현재 수강 강좌로 돌아갑니다.')) return;
+
+        completedIds.forEach(function (studentId) {
+          var student = Students.getById(studentId);
+          if (!student) return;
+          var history = Students.splitClasses(student.classHistory).filter(function (c) { return c !== cls.name; });
+          var current = Students.splitClasses(student.currentClasses);
+          if (current.indexOf(cls.name) === -1) current.push(cls.name);
+          updateStudentFields(student, {
+            currentClasses: Students.joinClasses(current),
+            classHistory: Students.joinClasses(history)
+          });
+        });
+
+        Classes.revertClass(cls.id);
+        renderClass(Classes.getById(cls.id));
+      });
+    } else {
+      document.getElementById('add-student-btn').addEventListener('click', function () {
+        openStudentSelect(cls.id);
+      });
+      document.getElementById('complete-btn').addEventListener('click', function () {
+        var students = cls.studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+        var confirmMsg = students.length === 0
+          ? '"' + cls.name + '" 반을 완강 처리할까요? (현재 등록된 학생 없음)'
+          : '"' + cls.name + '" 반을 완강 처리할까요? 현재 학생 ' + students.length + '명이 함께 처리됩니다.';
+        if (!confirm(confirmMsg)) return;
+
+        students.forEach(function (student) {
+          var current = Students.splitClasses(student.currentClasses).filter(function (c) { return c !== cls.name; });
+          var history = Students.splitClasses(student.classHistory);
+          if (history.indexOf(cls.name) === -1) history.push(cls.name);
+          updateStudentFields(student, {
+            currentClasses: Students.joinClasses(current),
+            classHistory: Students.joinClasses(history)
+          });
+        });
+
+        Classes.completeClass(cls.id);
+        renderClass(Classes.getById(cls.id));
+      });
+    }
+  }
+
+  // ---- 학생 추가 모달 ----
+  var selectOverlay = document.getElementById('student-select-overlay');
+  var selectTitle = document.getElementById('student-select-title');
+  var selectSearch = document.getElementById('student-select-search');
+  var selectBody = document.getElementById('student-select-body');
+  var selectConfirm = document.getElementById('student-select-confirm');
+  var selectCancel = document.getElementById('student-select-cancel');
+  var activeClassId = null;
+
+  function openStudentSelect(id) {
+    activeClassId = id;
+    var cls = Classes.getById(id);
+    if (!cls) return;
+    selectTitle.textContent = cls.name + ' · 학생 추가';
+    selectSearch.value = '';
+    renderStudentSelect();
+    selectOverlay.hidden = false;
+    selectSearch.focus();
+  }
+
+  function renderStudentSelect() {
+    var cls = Classes.getById(activeClassId);
+    if (!cls) return;
+    var query = selectSearch.value.trim().toLowerCase();
+    var candidates = Students.getAll().filter(function (s) {
+      return cls.studentIds.indexOf(s.id) === -1;
+    });
+    if (query) {
+      candidates = candidates.filter(function (s) {
+        return [s.name, s.school, s.grade].some(function (f) {
+          return (f || '').toLowerCase().indexOf(query) !== -1;
+        });
+      });
+    }
+
+    if (candidates.length === 0) {
+      selectBody.innerHTML = '<tr><td colspan="4" class="table-empty">추가할 수 있는 학생이 없습니다.</td></tr>';
+      return;
+    }
+
+    selectBody.innerHTML = candidates.map(function (s) {
+      return (
+        '<tr>' +
+          '<td><input type="checkbox" class="student-select-checkbox" value="' + s.id + '"></td>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  selectSearch.addEventListener('input', renderStudentSelect);
+  selectCancel.addEventListener('click', function () { selectOverlay.hidden = true; });
+  selectOverlay.addEventListener('click', function (e) {
+    if (e.target === selectOverlay) selectOverlay.hidden = true;
+  });
+
+  selectConfirm.addEventListener('click', function () {
+    var cls = Classes.getById(activeClassId);
+    if (!cls) return;
+    var checked = Array.prototype.filter.call(
+      selectBody.querySelectorAll('.student-select-checkbox'),
+      function (cb) { return cb.checked; }
+    ).map(function (cb) { return cb.value; });
+
+    checked.forEach(function (studentId) {
+      Classes.addStudentToClass(activeClassId, studentId);
+      var student = Students.getById(studentId);
+      var current = Students.splitClasses(student.currentClasses);
+      if (current.indexOf(cls.name) === -1) {
+        current.push(cls.name);
+        updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
+      }
+    });
+
+    selectOverlay.hidden = true;
+    renderClass(Classes.getById(activeClassId));
+  });
+
+  var cls = classId ? Classes.getById(classId) : null;
+
+  if (cls) {
+    renderClass(cls);
+  } else {
+    detailCard.innerHTML =
+      '<p class="body-md">반 정보를 찾을 수 없습니다.</p>' +
+      '<div class="detail-actions"><a class="btn-secondary" href="./class.html">반별 관리로 돌아가기</a></div>';
+  }
+</script>
+</body>
+</html>

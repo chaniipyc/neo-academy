@@ -101,6 +101,150 @@
     }
   }
 
+  function rosterIds(cls) {
+    if (!cls) return [];
+    return isCompleted(cls) ? (cls.completedStudentIds || []) : (cls.studentIds || []);
+  }
+
+  // ---- Attendance ----
+  function getAttendanceDates(classId) {
+    var cls = getById(classId);
+    return cls && cls.attendanceDates ? cls.attendanceDates.slice() : [];
+  }
+
+  function getAttendance(classId, date) {
+    var cls = getById(classId);
+    return (cls && cls.attendance && cls.attendance[date]) || {};
+  }
+
+  function bulkMarkAttendance(classId, date, status) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !date) return;
+    if (!cls.attendanceDates) cls.attendanceDates = [];
+    if (!cls.attendance) cls.attendance = {};
+    if (cls.attendanceDates.indexOf(date) === -1) {
+      cls.attendanceDates.push(date);
+      cls.attendanceDates.sort();
+    }
+    if (!cls.attendance[date]) cls.attendance[date] = {};
+    rosterIds(cls).forEach(function (sid) { cls.attendance[date][sid] = status; });
+    saveAll(list);
+  }
+
+  function addAttendanceDate(classId, date) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !date) return;
+    if (!cls.attendanceDates) cls.attendanceDates = [];
+    if (!cls.attendance) cls.attendance = {};
+    if (cls.attendanceDates.indexOf(date) === -1) {
+      cls.attendanceDates.push(date);
+      cls.attendanceDates.sort();
+    }
+    if (!cls.attendance[date]) cls.attendance[date] = {};
+    saveAll(list);
+  }
+
+  function setAttendance(classId, date, studentId, status) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !date) return;
+    if (!cls.attendance) cls.attendance = {};
+    if (!cls.attendance[date]) cls.attendance[date] = {};
+    cls.attendance[date][studentId] = status;
+    saveAll(list);
+  }
+
+  function removeAttendanceDate(classId, date) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls) return;
+    if (cls.attendanceDates) {
+      cls.attendanceDates = cls.attendanceDates.filter(function (d) { return d !== date; });
+    }
+    if (cls.attendance && cls.attendance[date] !== undefined) {
+      delete cls.attendance[date];
+    }
+    saveAll(list);
+  }
+
+  // ---- Tests ----
+  function genExamId() {
+    return 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function getExams(classId) {
+    var cls = getById(classId);
+    return cls && cls.exams ? cls.exams.slice() : [];
+  }
+
+  function addExam(classId, date, maxScore, name) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !date) return null;
+    if (!cls.exams) cls.exams = [];
+    var exam = { id: genExamId(), date: date, maxScore: maxScore, name: name || '', scores: {} };
+    cls.exams.push(exam);
+    cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
+    saveAll(list);
+    return exam;
+  }
+
+  function removeExam(classId, examId) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !cls.exams) return;
+    cls.exams = cls.exams.filter(function (e) { return e.id !== examId; });
+    saveAll(list);
+  }
+
+  function setExamName(classId, examId, name) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls) return;
+    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+    if (!exam) return;
+    exam.name = name;
+    saveAll(list);
+  }
+
+  function setExamDate(classId, examId, date) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls || !date) return;
+    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+    if (!exam) return;
+    exam.date = date;
+    cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
+    saveAll(list);
+  }
+
+  function setExamMaxScore(classId, examId, maxScore) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls) return;
+    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+    if (!exam) return;
+    exam.maxScore = maxScore;
+    saveAll(list);
+  }
+
+  function setExamScore(classId, examId, studentId, score) {
+    var list = getAll();
+    var cls = list.filter(function (c) { return c.id === classId; })[0];
+    if (!cls) return;
+    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+    if (!exam) return;
+    if (!exam.scores) exam.scores = {};
+    if (score === null || score === '') {
+      delete exam.scores[studentId];
+    } else {
+      exam.scores[studentId] = score;
+    }
+    saveAll(list);
+  }
+
   function seedFromStudents() {
     if (localStorage.getItem(SEED_FLAG_KEY)) return;
     if (getAll().length > 0) {
@@ -128,10 +272,24 @@
     getById: getById,
     getByName: getByName,
     getClassNames: getClassNames,
+    rosterIds: rosterIds,
     add: add,
     addStudentToClass: addStudentToClass,
     removeStudentFromClass: removeStudentFromClass,
     completeClass: completeClass,
-    revertClass: revertClass
+    revertClass: revertClass,
+    getAttendanceDates: getAttendanceDates,
+    getAttendance: getAttendance,
+    bulkMarkAttendance: bulkMarkAttendance,
+    addAttendanceDate: addAttendanceDate,
+    setAttendance: setAttendance,
+    removeAttendanceDate: removeAttendanceDate,
+    getExams: getExams,
+    addExam: addExam,
+    removeExam: removeExam,
+    setExamDate: setExamDate,
+    setExamName: setExamName,
+    setExamMaxScore: setExamMaxScore,
+    setExamScore: setExamScore
   };
 })(window);

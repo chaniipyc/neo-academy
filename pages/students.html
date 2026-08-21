@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=2"></script>
+<script src="../js/auth.js?v=5"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -156,9 +156,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=2"></script>
-<script src="../js/students.js?v=2"></script>
-<script src="../js/classes.js?v=2"></script>
+<script src="../js/layout.js?v=5"></script>
+<script src="../js/students.js?v=5"></script>
+<script src="../js/classes.js?v=5"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -218,6 +218,16 @@
       .map(function (cb) { return cb.value; });
   }
 
+  function renderClassLinks(classesStr) {
+    var names = Students.splitClasses(classesStr);
+    if (names.length === 0) return '';
+    return names.map(function (name) {
+      var cls = Classes.getByName(name);
+      if (!cls) return escapeHtml(name);
+      return '<a class="cell-link" href="./class-detail.html?id=' + encodeURIComponent(cls.id) + '">' + escapeHtml(name) + '</a>';
+    }).join(', ');
+  }
+
   function renderTable() {
     var students = Students.search(searchInput.value, getSelectedFields());
 
@@ -232,7 +242,7 @@
           '<td>' + escapeHtml(s.name) + '</td>' +
           '<td>' + escapeHtml(s.school) + '</td>' +
           '<td>' + escapeHtml(s.grade) + '</td>' +
-          '<td>' + escapeHtml(s.currentClasses) + '</td>' +
+          '<td>' + renderClassLinks(s.currentClasses) + '</td>' +
           '<td class="row-actions">' +
             '<a class="row-action view" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">자세히 보기</a>' +
             '<button type="button" class="row-action edit" data-id="' + s.id + '">수정</button>' +

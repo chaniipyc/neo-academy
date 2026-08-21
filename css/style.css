@@ -776,6 +776,16 @@ textarea.text-input {
   padding: var(--space-xxl);
 }
 
+.cell-link {
+  color: var(--color-link-blue);
+  font-weight: 600;
+}
+
+.cell-link:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
 /* ---------- Class management page ---------- */
 .class-toolbar {
   width: 100%;
@@ -860,6 +870,172 @@ textarea.text-input {
 .btn-complete:hover {
   background: var(--color-success);
   color: var(--color-on-primary);
+}
+
+/* ---------- Attendance / Test tables ---------- */
+.record-table-wrap {
+  width: 100%;
+  max-width: 1080px;
+}
+
+.record-table-wrap .table-scroll {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+td.record-cell {
+  text-align: center;
+}
+
+.sticky-first-col {
+  width: auto;
+  min-width: 0;
+}
+
+.sticky-first-col thead th:not(:first-child),
+.sticky-first-col .record-cell,
+.sticky-first-col .new-col-cell {
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
+}
+
+.sticky-first-col th:first-child,
+.sticky-first-col td:first-child {
+  width: 110px;
+  min-width: 110px;
+  position: sticky;
+  left: 0;
+  background: var(--color-canvas);
+  z-index: 1;
+  box-shadow: 2px 0 4px rgba(32, 17, 34, 0.05);
+}
+
+.sticky-first-col thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-canvas-page);
+  z-index: 2;
+}
+
+.sticky-first-col thead th:first-child {
+  z-index: 3;
+}
+
+.sticky-first-col .new-col-header,
+.sticky-first-col .new-col-cell {
+  position: sticky;
+  right: 0;
+}
+
+.sticky-first-col thead th.new-col-header {
+  z-index: 3;
+}
+
+.sticky-first-col tbody tr:hover td:first-child {
+  background: var(--color-canvas-page);
+}
+
+.sticky-first-col tfoot tr.stats-row td:first-child {
+  background: var(--color-canvas-page);
+}
+
+.exam-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+}
+
+.sticky-first-col thead th:not(:first-child) {
+  text-align: center;
+}
+
+.exam-header > span {
+  text-align: center;
+  font-size: 13px;
+}
+
+.btn-tiny {
+  width: 100%;
+  padding: 4px 10px;
+  font-size: 12px;
+  margin-top: 0;
+  box-sizing: border-box;
+}
+
+.header-btn-row {
+  display: flex;
+  gap: 4px;
+}
+
+.header-btn-row .btn-tiny {
+  flex: 1;
+}
+
+.new-col-header,
+.new-col-cell {
+  background: var(--color-canvas-page);
+  border-left: 1px dashed var(--color-hairline);
+}
+
+.new-col-header .text-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.attendance-input,
+.exam-name-input,
+.exam-date-input,
+.max-score-input,
+.score-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-xs);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: center;
+  background: transparent;
+}
+
+.exam-name-input {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.max-score-input {
+  color: var(--color-ink-mute);
+}
+
+.attendance-input:focus,
+.exam-name-input:focus,
+.exam-date-input:focus,
+.max-score-input:focus,
+.score-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-canvas);
+}
+
+.score-cell-low {
+  background: #fdeae5;
+}
+
+.score-cell-high {
+  background: #e6f2fd;
+}
+
+.stats-row td {
+  font-weight: 700;
+  background: var(--color-canvas-page);
+  text-align: center;
+}
+
+.stats-row td:first-child {
+  text-align: left;
 }
 
 /* ---------- Student detail page ---------- */
