@@ -78,6 +78,10 @@
     saveAll(list);
   }
 
+  function removeClass(classId) {
+    saveAll(getAll().filter(function (c) { return c.id !== classId; }));
+  }
+
   function addStudentToClass(classId, studentId) {
     var list = getAll();
     var cls = list.filter(function (c) { return c.id === classId; })[0];
@@ -256,6 +260,7 @@
     removeStudentFromClass: removeStudentFromClass,
     completeClass: completeClass,
     revertClass: revertClass,
+    removeClass: removeClass,
     getAttendanceDates: getAttendanceDates,
     getAttendance: getAttendance,
     bulkMarkAttendance: bulkMarkAttendance,
