@@ -80,6 +80,8 @@ body {
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 a {
@@ -1463,6 +1465,24 @@ td.record-cell.attendance-cell {
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   max-width: 68ch;
+}
+
+.help-menu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.help-menu-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .help-color-legend li {
