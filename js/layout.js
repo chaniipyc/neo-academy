@@ -52,7 +52,7 @@
     mount.innerHTML =
       '<header class="site-header">' +
         '<div class="header-top">' +
-          '<div class="header-side"></div>' +
+          '<div class="header-side"><a class="auth-link" href="' + root + 'pages/help.html">도움말</a></div>' +
           '<a class="logo-link" href="' + root + 'index.html">' +
             '<img class="logo-img" src="' + root + 'assets/NEO_logo.png" alt="NEO ACADEMY">' +
           '</a>' +

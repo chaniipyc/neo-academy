@@ -19,6 +19,7 @@
   --color-hairline-soft: #f0ebf1;
   --color-error: #cc4117;
   --color-success: #007a5a;
+  --color-warning: #96600a;
   --color-on-aubergine-mute: #d9bdde;
 
   /* Elevation */
@@ -432,6 +433,16 @@ button {
   box-shadow: var(--shadow-focus);
 }
 
+.btn-secondary:disabled,
+.btn-primary:disabled,
+.btn-danger:disabled,
+.btn-complete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn-secondary {
   background: var(--color-primary-soft);
   color: var(--color-primary);
@@ -764,6 +775,11 @@ textarea.text-input {
   border-bottom: none;
 }
 
+.select-col {
+  width: 40px;
+  text-align: center !important;
+}
+
 .data-table td.row-actions {
   display: flex;
   gap: var(--space-sm);
@@ -1008,7 +1024,7 @@ td.record-cell {
   box-sizing: border-box;
 }
 
-.attendance-input,
+.attendance-note-input,
 .exam-name-input,
 .exam-date-input,
 .max-score-input,
@@ -1033,7 +1049,7 @@ td.record-cell {
   color: var(--color-ink-mute);
 }
 
-.attendance-input:focus,
+.attendance-note-input:focus,
 .exam-name-input:focus,
 .exam-date-input:focus,
 .max-score-input:focus,
@@ -1049,6 +1065,69 @@ td.record-cell {
 
 .score-cell-high {
   background: #e6f2fd;
+}
+
+.attendance-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: inline-block;
+  width: auto;
+  min-width: 80px;
+  box-sizing: border-box;
+  padding: 8px 28px 8px 14px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  text-align-last: center;
+  background-color: var(--color-canvas);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%236b6070' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px;
+  color: var(--color-ink-mute);
+  cursor: pointer;
+  transition: background-color 0.12s var(--ease-standard), color 0.12s var(--ease-standard), border-color 0.12s var(--ease-standard);
+}
+
+.attendance-select:focus {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.attendance-note-input {
+  margin-top: 6px;
+}
+
+td.record-cell.attendance-cell {
+  text-align: center;
+}
+
+.attendance-cell.status-present .attendance-select {
+  background-color: #dcfce7;
+  border-color: transparent;
+  color: #15803d;
+}
+
+.attendance-cell.status-late .attendance-select {
+  background-color: #fef3c7;
+  border-color: transparent;
+  color: #92400e;
+}
+
+.attendance-cell.status-absent .attendance-select {
+  background-color: #fee2e2;
+  border-color: transparent;
+  color: #b91c1c;
+}
+
+.attendance-cell.status-other .attendance-select {
+  background-color: var(--color-primary-soft);
+  border-color: transparent;
+  color: var(--color-primary);
 }
 
 .stats-row td {
@@ -1177,6 +1256,154 @@ td.record-cell {
   gap: var(--space-sm);
 }
 
+/* ---------- Help page ---------- */
+.help-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xxl);
+}
+
+.help-toc a {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  color: var(--color-ink-mute);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 0.15s var(--ease-standard), border-color 0.15s var(--ease-standard), background-color 0.15s var(--ease-standard);
+}
+
+.help-toc a:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.help-section {
+  width: 100%;
+  padding: var(--space-xxl) 0;
+  border-bottom: 1px solid var(--color-hairline-soft);
+  scroll-margin-top: 90px;
+}
+
+.help-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.help-section h2 {
+  margin-bottom: var(--space-md);
+}
+
+.help-section > p {
+  margin-bottom: var(--space-md);
+  max-width: 68ch;
+}
+
+.help-steps {
+  margin: 0 0 var(--space-lg);
+  padding-left: 0;
+  list-style: none;
+  counter-reset: help-step;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.help-steps li {
+  counter-increment: help-step;
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  max-width: 68ch;
+}
+
+.help-steps li::before {
+  content: counter(help-step);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.help-list {
+  margin: 0 0 var(--space-lg);
+  padding-left: 20px;
+  max-width: 68ch;
+}
+
+.help-list li {
+  margin-bottom: 8px;
+}
+
+.help-note {
+  display: flex;
+  gap: var(--space-md);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin: var(--space-md) 0 var(--space-lg);
+  max-width: 68ch;
+}
+
+.help-note.warn {
+  background: #fdf1ec;
+}
+
+.help-note p {
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.help-note-label {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.help-note.warn .help-note-label {
+  color: var(--color-error);
+}
+
+.help-table-wrap {
+  overflow-x: auto;
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
+.help-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.help-table th,
+.help-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--color-hairline);
+  white-space: nowrap;
+}
+
+.help-table th {
+  background: var(--color-canvas-page);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--color-ink-mute);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 640px) {
   .nav-trigger {
@@ -1195,7 +1422,8 @@ td.record-cell {
     min-height: 0;
   }
   .header-side:not(.auth-bar) {
-    display: none;
+    justify-content: center;
+    width: 100%;
   }
   .auth-bar {
     justify-content: center;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=5"></script>
+<script src="../js/auth.js?v=10"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -44,6 +44,7 @@
         </label>
       </div>
     </div>
+    <button type="button" class="btn-danger" id="bulk-delete-btn" disabled>선택 삭제 (0)</button>
     <button type="button" class="btn-secondary" id="paste-student-btn">엑셀에서 붙여넣기</button>
     <button type="button" class="btn-primary" id="add-student-btn">+ 학생 추가</button>
   </div>
@@ -52,6 +53,7 @@
     <table class="data-table">
       <thead>
         <tr>
+          <th class="select-col"><input type="checkbox" id="select-all-checkbox" aria-label="전체 선택"></th>
           <th>이름</th>
           <th>학교</th>
           <th>학년</th>
@@ -84,12 +86,37 @@
           <input type="text" name="grade" class="text-input" placeholder="예: 중2">
         </label>
         <label class="auth-field">
+          <span class="caption">등록일</span>
+          <input type="date" name="registeredAt" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">구분</span>
+          <select name="division" class="text-input">
+            <option value="">선택 안 함</option>
+            <option value="초등부">초등부</option>
+            <option value="중등부">중등부</option>
+            <option value="고등부">고등부</option>
+          </select>
+        </label>
+        <label class="auth-field">
+          <span class="caption">담임</span>
+          <input type="text" name="homeroom" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">수업일</span>
+          <input type="text" name="classDays" class="text-input" placeholder="예: 월, 수, 금">
+        </label>
+        <label class="auth-field">
           <span class="caption">학생 전화번호</span>
           <input type="tel" name="studentPhone" class="text-input" placeholder="010-0000-0000">
         </label>
         <label class="auth-field">
           <span class="caption">학부모님 전화번호</span>
           <input type="tel" name="parentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field">
+          <span class="caption">수강료</span>
+          <input type="text" name="tuition" class="text-input" placeholder="예: 300,000원">
         </label>
         <label class="auth-field full-width">
           <span class="caption">주소</span>
@@ -121,7 +148,7 @@
   <div class="modal-card modal-card-wide">
     <h2 class="heading-md">엑셀에서 붙여넣기</h2>
     <p class="body-md placeholder-desc">엑셀에서 아래 순서로 셀 범위를 복사한 뒤 아래 칸에 붙여넣으세요 (Ctrl+V). 첫 줄이 항목명이면 자동으로 제외됩니다.</p>
-    <p class="caption">이름 · 학교 · 학년 · 학생 전화번호 · 학부모님 전화번호 · 주소 · 현재 수강 수업 · 수강 수업 이력 · 특이 사항</p>
+    <p class="caption">등록일 · 구분 · 이름 · 학교 · 주소 · 학년 · 담임 · 수업일 · 학생 전화번호 · 학부모 전화번호 · 현재 수강 수업 · 수강료</p>
 
     <textarea id="paste-textarea" class="text-input" rows="6" placeholder="여기를 클릭한 뒤 Ctrl+V로 붙여넣으세요"></textarea>
 
@@ -131,15 +158,18 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th>등록일</th>
+              <th>구분</th>
               <th>이름</th>
               <th>학교</th>
-              <th>학년</th>
-              <th>학생 연락처</th>
-              <th>학부모님 연락처</th>
               <th>주소</th>
+              <th>학년</th>
+              <th>담임</th>
+              <th>수업일</th>
+              <th>학생 전화번호</th>
+              <th>학부모 전화번호</th>
               <th>현재 수강 수업</th>
-              <th>수강 수업 이력</th>
-              <th>특이 사항</th>
+              <th>수강료</th>
             </tr>
           </thead>
           <tbody id="paste-preview-body"></tbody>
@@ -156,9 +186,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=5"></script>
-<script src="../js/students.js?v=5"></script>
-<script src="../js/classes.js?v=5"></script>
+<script src="../js/layout.js?v=10"></script>
+<script src="../js/students.js?v=10"></script>
+<script src="../js/classes.js?v=10"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -228,17 +258,38 @@
     }).join(', ');
   }
 
+  var selectedIds = new Set();
+  var visibleIds = [];
+  var selectAllCheckbox = document.getElementById('select-all-checkbox');
+  var bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+
+  function updateBulkDeleteBtn() {
+    bulkDeleteBtn.textContent = '선택 삭제 (' + selectedIds.size + ')';
+    bulkDeleteBtn.disabled = selectedIds.size === 0;
+  }
+
+  function updateSelectAllState() {
+    var allSelected = visibleIds.length > 0 && visibleIds.every(function (id) { return selectedIds.has(id); });
+    var someSelected = visibleIds.some(function (id) { return selectedIds.has(id); });
+    selectAllCheckbox.checked = allSelected;
+    selectAllCheckbox.indeterminate = !allSelected && someSelected;
+  }
+
   function renderTable() {
     var students = Students.search(searchInput.value, getSelectedFields());
+    visibleIds = students.map(function (s) { return s.id; });
 
     if (students.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">등록된 학생이 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">등록된 학생이 없습니다.</td></tr>';
+      updateSelectAllState();
       return;
     }
 
     tbody.innerHTML = students.map(function (s) {
+      var checked = selectedIds.has(s.id) ? ' checked' : '';
       return (
         '<tr>' +
+          '<td class="select-col"><input type="checkbox" class="row-select-checkbox" value="' + s.id + '"' + checked + '></td>' +
           '<td>' + escapeHtml(s.name) + '</td>' +
           '<td>' + escapeHtml(s.school) + '</td>' +
           '<td>' + escapeHtml(s.grade) + '</td>' +
@@ -251,6 +302,8 @@
         '</tr>'
       );
     }).join('');
+
+    updateSelectAllState();
   }
 
   function openModal(student) {
@@ -261,8 +314,13 @@
       form.name.value = student.name;
       form.school.value = student.school;
       form.grade.value = student.grade;
+      form.registeredAt.value = student.registeredAt;
+      form.division.value = student.division;
+      form.homeroom.value = student.homeroom;
+      form.classDays.value = student.classDays;
       form.studentPhone.value = student.studentPhone;
       form.parentPhone.value = student.parentPhone;
+      form.tuition.value = student.tuition;
       form.address.value = student.address;
       form.classHistory.value = student.classHistory;
       form.notes.value = student.notes;
@@ -294,8 +352,13 @@
       name: form.name.value.trim(),
       school: form.school.value.trim(),
       grade: form.grade.value.trim(),
+      registeredAt: form.registeredAt.value.trim(),
+      division: form.division.value.trim(),
+      homeroom: form.homeroom.value.trim(),
+      classDays: form.classDays.value.trim(),
       studentPhone: form.studentPhone.value.trim(),
       parentPhone: form.parentPhone.value.trim(),
+      tuition: form.tuition.value.trim(),
       address: form.address.value.trim(),
       currentClasses: Students.joinClasses(selectedClasses),
       classHistory: form.classHistory.value.trim(),
@@ -341,9 +404,53 @@
       if (student && confirm(student.name + ' 학생 정보를 삭제할까요?')) {
         removeStudentFromAllClasses(student.id);
         Students.remove(deleteBtn.dataset.id);
+        selectedIds.delete(student.id);
         renderTable();
       }
     }
+  });
+
+  tbody.addEventListener('change', function (e) {
+    var cb = e.target.closest('.row-select-checkbox');
+    if (!cb) return;
+    if (cb.checked) {
+      selectedIds.add(cb.value);
+    } else {
+      selectedIds.delete(cb.value);
+    }
+    updateBulkDeleteBtn();
+    updateSelectAllState();
+  });
+
+  selectAllCheckbox.addEventListener('change', function () {
+    if (selectAllCheckbox.checked) {
+      visibleIds.forEach(function (id) { selectedIds.add(id); });
+    } else {
+      visibleIds.forEach(function (id) { selectedIds.delete(id); });
+    }
+    updateBulkDeleteBtn();
+    renderTable();
+  });
+
+  bulkDeleteBtn.addEventListener('click', function () {
+    var students = Array.prototype.filter.call(
+      Array.from(selectedIds), function (id) { return Students.getById(id); }
+    ).map(function (id) { return Students.getById(id); });
+
+    if (students.length === 0) return;
+
+    var names = students.map(function (s) { return s.name; });
+    var preview = names.slice(0, 5).join(', ') + (names.length > 5 ? ' 외 ' + (names.length - 5) + '명' : '');
+    var confirmMsg = students.length + '명의 학생 정보를 삭제할까요?\n(' + preview + ')\n이 작업은 되돌릴 수 없으며, 반 명단에서도 함께 제외됩니다.';
+    if (!confirm(confirmMsg)) return;
+
+    students.forEach(function (s) {
+      removeStudentFromAllClasses(s.id);
+      Students.remove(s.id);
+    });
+    selectedIds.clear();
+    updateBulkDeleteBtn();
+    renderTable();
   });
 
   searchInput.addEventListener('input', renderTable);
@@ -393,15 +500,18 @@
     pastePreviewBody.innerHTML = parsedStudents.map(function (s) {
       return (
         '<tr>' +
+          '<td>' + escapeHtml(s.registeredAt) + '</td>' +
+          '<td>' + escapeHtml(s.division) + '</td>' +
           '<td>' + escapeHtml(s.name) + '</td>' +
           '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.address) + '</td>' +
           '<td>' + escapeHtml(s.grade) + '</td>' +
+          '<td>' + escapeHtml(s.homeroom) + '</td>' +
+          '<td>' + escapeHtml(s.classDays) + '</td>' +
           '<td>' + escapeHtml(s.studentPhone) + '</td>' +
           '<td>' + escapeHtml(s.parentPhone) + '</td>' +
-          '<td>' + escapeHtml(s.address) + '</td>' +
           '<td>' + escapeHtml(s.currentClasses) + '</td>' +
-          '<td>' + escapeHtml(s.classHistory) + '</td>' +
-          '<td>' + escapeHtml(s.notes) + '</td>' +
+          '<td>' + escapeHtml(s.tuition) + '</td>' +
         '</tr>'
       );
     }).join('');
@@ -419,7 +529,13 @@
 
   pasteConfirmBtn.addEventListener('click', function () {
     if (parsedStudents.length === 0) return;
-    Students.addMany(parsedStudents);
+    var created = Students.addMany(parsedStudents);
+    created.forEach(function (s) {
+      Students.splitClasses(s.currentClasses).forEach(function (className) {
+        var cls = Classes.getByName(className);
+        if (cls) Classes.addStudentToClass(cls.id, s.id);
+      });
+    });
     closePasteModal();
     renderTable();
   });

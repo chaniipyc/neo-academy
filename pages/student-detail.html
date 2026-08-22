@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 상세 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=5"></script>
+<script src="../js/auth.js?v=10"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -51,12 +51,37 @@
           <input type="text" name="grade" class="text-input" placeholder="예: 중2">
         </label>
         <label class="auth-field">
+          <span class="caption">등록일</span>
+          <input type="date" name="registeredAt" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">구분</span>
+          <select name="division" class="text-input">
+            <option value="">선택 안 함</option>
+            <option value="초등부">초등부</option>
+            <option value="중등부">중등부</option>
+            <option value="고등부">고등부</option>
+          </select>
+        </label>
+        <label class="auth-field">
+          <span class="caption">담임</span>
+          <input type="text" name="homeroom" class="text-input">
+        </label>
+        <label class="auth-field">
+          <span class="caption">수업일</span>
+          <input type="text" name="classDays" class="text-input" placeholder="예: 월, 수, 금">
+        </label>
+        <label class="auth-field">
           <span class="caption">학생 전화번호</span>
           <input type="tel" name="studentPhone" class="text-input" placeholder="010-0000-0000">
         </label>
         <label class="auth-field">
           <span class="caption">학부모님 전화번호</span>
           <input type="tel" name="parentPhone" class="text-input" placeholder="010-0000-0000">
+        </label>
+        <label class="auth-field">
+          <span class="caption">수강료</span>
+          <input type="text" name="tuition" class="text-input" placeholder="예: 300,000원">
         </label>
         <label class="auth-field full-width">
           <span class="caption">주소</span>
@@ -86,9 +111,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=5"></script>
-<script src="../js/students.js?v=5"></script>
-<script src="../js/classes.js?v=5"></script>
+<script src="../js/layout.js?v=10"></script>
+<script src="../js/students.js?v=10"></script>
+<script src="../js/classes.js?v=10"></script>
 <script>
   var studentId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -194,8 +219,13 @@
         '<p class="caption">' + escapeHtml(s.school || '학교 미입력') + ' · ' + escapeHtml(s.grade || '학년 미입력') + '</p>' +
       '</div>' +
       '<div class="detail-grid">' +
+        field('등록일', s.registeredAt) +
+        field('구분', s.division) +
+        field('담임', s.homeroom) +
+        field('수업일', s.classDays) +
         field('학생 전화번호', s.studentPhone) +
         field('학부모님 전화번호', s.parentPhone) +
+        field('수강료', s.tuition) +
         field('주소', s.address, true) +
         classField('현재 수강 수업', s.currentClasses, true) +
         field('수강 수업 이력', s.classHistory, true) +
@@ -224,8 +254,13 @@
     form.name.value = student.name;
     form.school.value = student.school;
     form.grade.value = student.grade;
+    form.registeredAt.value = student.registeredAt;
+    form.division.value = student.division;
+    form.homeroom.value = student.homeroom;
+    form.classDays.value = student.classDays;
     form.studentPhone.value = student.studentPhone;
     form.parentPhone.value = student.parentPhone;
+    form.tuition.value = student.tuition;
     form.address.value = student.address;
     form.classHistory.value = student.classHistory;
     form.notes.value = student.notes;
@@ -251,8 +286,13 @@
       name: form.name.value.trim(),
       school: form.school.value.trim(),
       grade: form.grade.value.trim(),
+      registeredAt: form.registeredAt.value.trim(),
+      division: form.division.value.trim(),
+      homeroom: form.homeroom.value.trim(),
+      classDays: form.classDays.value.trim(),
       studentPhone: form.studentPhone.value.trim(),
       parentPhone: form.parentPhone.value.trim(),
+      tuition: form.tuition.value.trim(),
       address: form.address.value.trim(),
       currentClasses: Students.joinClasses(selectedClasses),
       classHistory: form.classHistory.value.trim(),

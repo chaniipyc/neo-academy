@@ -1,7 +1,5 @@
 (function (global) {
   var KEY = 'neo_academy_classes';
-  var SEED_FLAG_KEY = 'neo_academy_classes_seeded_v1';
-  var DEFAULT_CLASS_NAMES = ['수학A', '수학B', '수학C', '국어A', '국어B', '국어C', '영어A', '영어B', '영어C'];
 
   function getAll() {
     try {
@@ -244,26 +242,6 @@
     }
     saveAll(list);
   }
-
-  function seedFromStudents() {
-    if (localStorage.getItem(SEED_FLAG_KEY)) return;
-    if (getAll().length > 0) {
-      localStorage.setItem(SEED_FLAG_KEY, '1');
-      return;
-    }
-    var students = (global.Students ? global.Students.getAll() : []);
-    var list = DEFAULT_CLASS_NAMES.map(function (name) {
-      var studentIds = students.filter(function (s) {
-        var names = (s.currentClasses || '').split(',').map(function (c) { return c.trim(); });
-        return names.indexOf(name) !== -1;
-      }).map(function (s) { return s.id; });
-      return { id: genId(), name: name, studentIds: studentIds, status: 'active', completedAt: null, completedStudentIds: [] };
-    });
-    saveAll(list);
-    localStorage.setItem(SEED_FLAG_KEY, '1');
-  }
-
-  seedFromStudents();
 
   global.Classes = {
     getAll: getAll,
