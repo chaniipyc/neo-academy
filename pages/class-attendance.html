@@ -5,11 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>출결 관리 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=11"></script>
+<style>body { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="../js/firebase-init.js"></script>
+<script src="../js/auth.js?v=12"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'class';
-  Auth.requireLogin(SITE_ROOT + 'login.html');
+  window.__authReady = Auth.requireLogin(SITE_ROOT + 'login.html');
 </script>
 </head>
 <body>
@@ -38,9 +43,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=11"></script>
-<script src="../js/students.js?v=11"></script>
-<script src="../js/classes.js?v=11"></script>
+<script src="../js/layout.js?v=12"></script>
+<script src="../js/students.js?v=12"></script>
+<script src="../js/classes.js?v=12"></script>
 <script>
   var classId = new URLSearchParams(location.search).get('id');
   var wrap = document.getElementById('record-table-wrap');
@@ -80,8 +85,8 @@
     return trimmed ? ('기타: ' + trimmed) : '기타';
   }
 
-  function render() {
-    var cls = Classes.getById(classId);
+  async function render() {
+    var cls = await Classes.getById(classId);
     if (!cls) {
       wrap.innerHTML = '<p class="body-md">반 정보를 찾을 수 없습니다.</p>';
       return;
@@ -91,7 +96,10 @@
     pageTitle.textContent = cls.name + ' · 출결 관리';
 
     var studentIds = Classes.rosterIds(cls);
-    var students = studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+    var allStudents = await Students.getAll();
+    var studentById = {};
+    allStudents.forEach(function (s) { studentById[s.id] = s; });
+    var students = studentIds.map(function (id) { return studentById[id]; }).filter(Boolean);
     students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
 
     if (students.length === 0) {
@@ -99,7 +107,8 @@
       return;
     }
 
-    var dates = Classes.getAttendanceDates(classId);
+    var dates = cls.attendanceDates || [];
+    var attendance = cls.attendance || {};
 
     var thead =
       '<tr><th>이름</th>' +
@@ -121,7 +130,7 @@
 
     var tbody = students.map(function (s) {
       var cells = dates.map(function (d) {
-        var value = Classes.getAttendance(classId, d)[s.id] || '';
+        var value = (attendance[d] && attendance[d][s.id]) || '';
         var parsed = parseAttendanceValue(value);
         var statusKey = STATUS_KEY[parsed.status];
         var showNote = parsed.status === '기타';
@@ -187,7 +196,7 @@
 
     wrap.querySelectorAll('.attendance-note-input').forEach(function (input) {
       function commit() {
-        Classes.setAttendance(classId, input.dataset.date, input.dataset.studentId, buildAttendanceValue('기타', input.value));
+        return Classes.setAttendance(classId, input.dataset.date, input.dataset.studentId, buildAttendanceValue('기타', input.value));
       }
 
       input.addEventListener('change', commit);
@@ -201,29 +210,32 @@
     });
 
     wrap.querySelectorAll('.bulk-attend-col-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        Classes.bulkMarkAttendance(classId, btn.dataset.date, '출석');
+      btn.addEventListener('click', async function () {
+        await Classes.bulkMarkAttendance(classId, btn.dataset.date, '출석');
         render();
       });
     });
 
     wrap.querySelectorAll('.attendance-delete-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', async function () {
         if (!confirm(btn.dataset.date + ' 출결 기록을 삭제할까요?')) return;
-        Classes.removeAttendanceDate(classId, btn.dataset.date);
+        await Classes.removeAttendanceDate(classId, btn.dataset.date);
         render();
       });
     });
 
     var newDateInput = document.getElementById('new-date-input');
-    newDateInput.addEventListener('change', function () {
+    newDateInput.addEventListener('change', async function () {
       if (!newDateInput.value) return;
-      Classes.addAttendanceDate(classId, newDateInput.value);
+      await Classes.addAttendanceDate(classId, newDateInput.value);
       render();
     });
   }
 
-  render();
+  window.__authReady.then(function () {
+    document.body.style.visibility = 'visible';
+    render();
+  });
 </script>
 </body>
 </html>

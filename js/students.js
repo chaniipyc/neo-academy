@@ -1,14 +1,12 @@
 (function (global) {
-  var KEY = 'neo_academy_students';
+  var COLLECTION = 'students';
 
   function getAll() {
-    try {
-      var raw = localStorage.getItem(KEY);
-      var list = raw ? JSON.parse(raw) : [];
+    return db.collection(COLLECTION).get().then(function (snap) {
+      var list = [];
+      snap.forEach(function (doc) { list.push(doc.data()); });
       return list.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
-    } catch (e) {
-      return [];
-    }
+    });
   }
 
   var FIELD_ORDER = [
@@ -22,30 +20,29 @@
     'grade', 'homeroom', 'classDays', 'studentPhone', 'parentPhone', 'currentClasses', 'tuition'
   ];
 
-  function saveAll(list) {
-    localStorage.setItem(KEY, JSON.stringify(list));
+  function genId(seed) {
+    return 's_' + Date.now() + '_' + seed + '_' + Math.random().toString(36).slice(2, 7);
   }
 
   function makeRecord(data, seed) {
-    var record = { id: 's_' + Date.now() + '_' + seed + '_' + Math.random().toString(36).slice(2, 7) };
+    var record = { id: genId(seed) };
     FIELD_ORDER.forEach(function (key) { record[key] = data[key] || ''; });
     record.createdAt = new Date().toISOString();
     return record;
   }
 
   function add(data) {
-    var list = getAll();
     var record = makeRecord(data, 0);
-    list.push(record);
-    saveAll(list);
-    return record;
+    return db.collection(COLLECTION).doc(record.id).set(record).then(function () { return record; });
   }
 
   function addMany(records) {
-    var list = getAll();
     var created = records.map(function (data, i) { return makeRecord(data, i); });
-    saveAll(list.concat(created));
-    return created;
+    var batch = db.batch();
+    created.forEach(function (record) {
+      batch.set(db.collection(COLLECTION).doc(record.id), record);
+    });
+    return batch.commit().then(function () { return created; });
   }
 
   function parsePaste(text) {
@@ -69,23 +66,23 @@
   }
 
   function update(id, data) {
-    var list = getAll();
-    var idx = list.findIndex(function (s) { return s.id === id; });
-    if (idx === -1) return null;
-    var record = { id: id };
-    FIELD_ORDER.forEach(function (key) { record[key] = data[key] || ''; });
-    record.createdAt = list[idx].createdAt;
-    list[idx] = record;
-    saveAll(list);
-    return list[idx];
+    return db.collection(COLLECTION).doc(id).get().then(function (doc) {
+      if (!doc.exists) return null;
+      var record = { id: id };
+      FIELD_ORDER.forEach(function (key) { record[key] = data[key] || ''; });
+      record.createdAt = doc.data().createdAt;
+      return db.collection(COLLECTION).doc(id).set(record).then(function () { return record; });
+    });
   }
 
   function remove(id) {
-    saveAll(getAll().filter(function (s) { return s.id !== id; }));
+    return db.collection(COLLECTION).doc(id).delete();
   }
 
   function getById(id) {
-    return getAll().filter(function (s) { return s.id === id; })[0] || null;
+    return db.collection(COLLECTION).doc(id).get().then(function (doc) {
+      return doc.exists ? doc.data() : null;
+    });
   }
 
   function splitClasses(str) {
@@ -100,11 +97,12 @@
 
   function search(query, fields) {
     query = (query || '').trim().toLowerCase();
-    var all = getAll();
-    if (!query) return all;
-    var targetFields = (fields && fields.length) ? fields : SEARCHABLE_FIELDS;
-    return all.filter(function (s) {
-      return targetFields.some(function (key) { return (s[key] || '').toLowerCase().indexOf(query) !== -1; });
+    return getAll().then(function (all) {
+      if (!query) return all;
+      var targetFields = (fields && fields.length) ? fields : SEARCHABLE_FIELDS;
+      return all.filter(function (s) {
+        return targetFields.some(function (key) { return (s[key] || '').toLowerCase().indexOf(query) !== -1; });
+      });
     });
   }
 

@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 학생 정보: 로그인한 사용자(관리자/선생님)만 읽고 쓸 수 있음
+    match /students/{studentId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // 반/출결/시험 정보: 로그인한 사용자만 읽고 쓸 수 있음
+    match /classes/{classId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // 계정 role 정보: 본인 문서는 누구나 읽기 가능(로그인 상태 확인용),
+    // 그 외 문서는 관리자만 읽기 가능. 쓰기(계정 생성/삭제)는 관리자만 가능.
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}
