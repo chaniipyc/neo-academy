@@ -41,6 +41,24 @@
     return getActive().then(function (list) { return list.map(function (c) { return c.name; }); });
   }
 
+  // 같은 반 문서를 동시에 여러 곳에서 고칠 수 있어서(예: 학생 여러 명을 한 번에 반에
+  // 배정), 단순 읽기->수정->쓰기 대신 트랜잭션으로 감싼다. 트랜잭션은 충돌이 감지되면
+  // 자동으로 다시 시도하므로, 동시에 여러 번 호출돼도 변경 내용이 서로 덮어써지지 않는다.
+  function updateClass(classId, mutator) {
+    var ref = db.collection(COLLECTION).doc(classId);
+    return db.runTransaction(function (transaction) {
+      return transaction.get(ref).then(function (doc) {
+        if (!doc.exists) return { cls: null, result: null };
+        var cls = doc.data();
+        var result = mutator(cls);
+        transaction.set(ref, cls);
+        return { cls: cls, result: result };
+      });
+    }).then(function (outcome) {
+      return outcome.result !== undefined ? outcome.result : outcome.cls;
+    });
+  }
+
   function add(name) {
     name = (name || '').trim();
     if (!name) return Promise.resolve({ ok: false, message: '반 이름을 입력해 주세요.' });
@@ -52,29 +70,21 @@
     });
   }
 
-  function saveClass(cls) {
-    return db.collection(COLLECTION).doc(cls.id).set(cls).then(function () { return cls; });
-  }
-
   function completeClass(classId) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       cls.completedStudentIds = cls.studentIds.slice();
       cls.studentIds = [];
       cls.status = 'completed';
       cls.completedAt = new Date().toISOString();
-      return saveClass(cls);
     });
   }
 
   function revertClass(classId) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       cls.studentIds = (cls.completedStudentIds || []).slice();
       cls.completedStudentIds = [];
       cls.status = 'active';
       cls.completedAt = null;
-      return saveClass(cls);
     });
   }
 
@@ -83,25 +93,17 @@
   }
 
   function addStudentToClass(classId, studentId) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       if (cls.studentIds.indexOf(studentId) === -1) {
         cls.studentIds.push(studentId);
-        return saveClass(cls);
       }
-      return cls;
     });
   }
 
   function removeStudentFromClass(classId, studentId) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       var idx = cls.studentIds.indexOf(studentId);
-      if (idx !== -1) {
-        cls.studentIds.splice(idx, 1);
-        return saveClass(cls);
-      }
-      return cls;
+      if (idx !== -1) cls.studentIds.splice(idx, 1);
     });
   }
 
@@ -124,8 +126,8 @@
   }
 
   function bulkMarkAttendance(classId, date, status) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !date) return null;
+    return updateClass(classId, function (cls) {
+      if (!date) return;
       if (!cls.attendanceDates) cls.attendanceDates = [];
       if (!cls.attendance) cls.attendance = {};
       if (cls.attendanceDates.indexOf(date) === -1) {
@@ -134,13 +136,12 @@
       }
       if (!cls.attendance[date]) cls.attendance[date] = {};
       rosterIds(cls).forEach(function (sid) { cls.attendance[date][sid] = status; });
-      return saveClass(cls);
     });
   }
 
   function addAttendanceDate(classId, date) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !date) return null;
+    return updateClass(classId, function (cls) {
+      if (!date) return;
       if (!cls.attendanceDates) cls.attendanceDates = [];
       if (!cls.attendance) cls.attendance = {};
       if (cls.attendanceDates.indexOf(date) === -1) {
@@ -148,30 +149,26 @@
         cls.attendanceDates.sort();
       }
       if (!cls.attendance[date]) cls.attendance[date] = {};
-      return saveClass(cls);
     });
   }
 
   function setAttendance(classId, date, studentId, status) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !date) return null;
+    return updateClass(classId, function (cls) {
+      if (!date) return;
       if (!cls.attendance) cls.attendance = {};
       if (!cls.attendance[date]) cls.attendance[date] = {};
       cls.attendance[date][studentId] = status;
-      return saveClass(cls);
     });
   }
 
   function removeAttendanceDate(classId, date) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       if (cls.attendanceDates) {
         cls.attendanceDates = cls.attendanceDates.filter(function (d) { return d !== date; });
       }
       if (cls.attendance && cls.attendance[date] !== undefined) {
         delete cls.attendance[date];
       }
-      return saveClass(cls);
     });
   }
 
@@ -187,67 +184,61 @@
   }
 
   function addExam(classId, date, maxScore, name) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !date) return null;
+    var createdExam = null;
+    return updateClass(classId, function (cls) {
+      if (!date) return;
       if (!cls.exams) cls.exams = [];
-      var exam = { id: genExamId(), date: date, maxScore: maxScore, name: name || '', scores: {} };
-      cls.exams.push(exam);
+      createdExam = { id: genExamId(), date: date, maxScore: maxScore, name: name || '', scores: {} };
+      cls.exams.push(createdExam);
       cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
-      return saveClass(cls).then(function () { return exam; });
+    }).then(function () {
+      return createdExam;
     });
   }
 
   function removeExam(classId, examId) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !cls.exams) return null;
+    return updateClass(classId, function (cls) {
+      if (!cls.exams) return;
       cls.exams = cls.exams.filter(function (e) { return e.id !== examId; });
-      return saveClass(cls);
     });
   }
 
   function setExamName(classId, examId, name) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-      if (!exam) return null;
+      if (!exam) return;
       exam.name = name;
-      return saveClass(cls);
     });
   }
 
   function setExamDate(classId, examId, date) {
-    return getById(classId).then(function (cls) {
-      if (!cls || !date) return null;
+    return updateClass(classId, function (cls) {
+      if (!date) return;
       var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-      if (!exam) return null;
+      if (!exam) return;
       exam.date = date;
       cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
-      return saveClass(cls);
     });
   }
 
   function setExamMaxScore(classId, examId, maxScore) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-      if (!exam) return null;
+      if (!exam) return;
       exam.maxScore = maxScore;
-      return saveClass(cls);
     });
   }
 
   function setExamScore(classId, examId, studentId, score) {
-    return getById(classId).then(function (cls) {
-      if (!cls) return null;
+    return updateClass(classId, function (cls) {
       var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-      if (!exam) return null;
+      if (!exam) return;
       if (!exam.scores) exam.scores = {};
       if (score === null || score === '') {
         delete exam.scores[studentId];
       } else {
         exam.scores[studentId] = score;
       }
-      return saveClass(cls);
     });
   }
 
