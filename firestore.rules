@@ -11,14 +11,23 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // 학생 정보: 로그인한 사용자(관리자/선생님)만 읽고 쓸 수 있음
-    match /students/{studentId} {
-      allow read, write: if isSignedIn();
+    // 로그인만 되어 있는 게 아니라, 관리자가 실제로 발급한 계정(= users 문서가 있는 계정)인지 확인.
+    // Firebase 프로젝트 설정 값은 공개돼도 안전하도록 설계돼 있어서, 이메일/비밀번호 로그인이
+    // 켜져 있으면 누구나 스스로 새 계정을 만들 수 있음 — 그런 "자기가 만든" 계정은 users 문서가
+    // 없으므로 여기서 걸러짐.
+    function hasIssuedAccount() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // 반/출결/시험 정보: 로그인한 사용자만 읽고 쓸 수 있음
+    // 학생 정보: 관리자가 발급한 계정만 읽고 쓸 수 있음
+    match /students/{studentId} {
+      allow read, write: if hasIssuedAccount();
+    }
+
+    // 반/출결/시험 정보: 관리자가 발급한 계정만 읽고 쓸 수 있음
     match /classes/{classId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if hasIssuedAccount();
     }
 
     // 계정 role 정보: 본인 문서는 누구나 읽기 가능(로그인 상태 확인용),
