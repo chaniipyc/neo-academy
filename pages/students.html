@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=14"></script>
+<script src="../js/auth.js?v=15"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -191,9 +191,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=14"></script>
-<script src="../js/students.js?v=14"></script>
-<script src="../js/classes.js?v=14"></script>
+<script src="../js/layout.js?v=15"></script>
+<script src="../js/students.js?v=15"></script>
+<script src="../js/classes.js?v=15"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -464,10 +464,18 @@
     var confirmMsg = students.length + '명의 학생 정보를 삭제할까요?\n(' + preview + ')\n이 작업은 되돌릴 수 없으며, 반 명단에서도 함께 제외됩니다.';
     if (!confirm(confirmMsg)) return;
 
-    await Promise.all(students.map(async function (s) {
-      await removeStudentFromAllClasses(s.id);
-      await Students.remove(s.id);
-    }));
+    var deletedIdSet = {};
+    students.forEach(function (s) { deletedIdSet[s.id] = true; });
+    var allClasses = await Classes.getAll();
+    // 학생 수만큼 개별 트랜잭션을 동시에 날리는 대신, 영향받는 반마다 트랜잭션을 1번만 실행한다.
+    var classOps = allClasses
+      .filter(function (cls) { return cls.studentIds.some(function (id) { return deletedIdSet[id]; }); })
+      .map(function (cls) {
+        var toRemove = cls.studentIds.filter(function (id) { return deletedIdSet[id]; });
+        return Classes.removeStudentsFromClass(cls.id, toRemove);
+      });
+    await Promise.all(classOps);
+    await Promise.all(students.map(function (s) { return Students.remove(s.id); }));
     selectedIds.clear();
     updateBulkDeleteBtn();
     renderTable();
@@ -552,14 +560,20 @@
     var classByName = {};
     allClasses.forEach(function (c) { classByName[c.name] = c; });
 
-    var ops = [];
+    // 반 하나당 트랜잭션을 1번만 실행하도록 학생을 반별로 묶는다(학생 수만큼 개별
+    // 트랜잭션을 동시에 날리면 같은 반 문서에 충돌이 몰려 일부가 반영되지 않는다).
+    var studentIdsByClassId = {};
     created.forEach(function (s) {
       Students.splitClasses(s.currentClasses).forEach(function (className) {
         var cls = classByName[className];
-        if (cls) ops.push(Classes.addStudentToClass(cls.id, s.id));
+        if (!cls) return;
+        if (!studentIdsByClassId[cls.id]) studentIdsByClassId[cls.id] = [];
+        studentIdsByClassId[cls.id].push(s.id);
       });
     });
-    await Promise.all(ops);
+    await Promise.all(Object.keys(studentIdsByClassId).map(function (classId) {
+      return Classes.addStudentsToClass(classId, studentIdsByClassId[classId]);
+    }));
 
     closePasteModal();
     renderTable();

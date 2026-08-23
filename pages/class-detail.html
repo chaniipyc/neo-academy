@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=14"></script>
+<script src="../js/auth.js?v=15"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'class';
@@ -62,9 +62,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=14"></script>
-<script src="../js/students.js?v=14"></script>
-<script src="../js/classes.js?v=14"></script>
+<script src="../js/layout.js?v=15"></script>
+<script src="../js/students.js?v=15"></script>
+<script src="../js/classes.js?v=15"></script>
 <script>
   var classId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -268,15 +268,20 @@
       function (cb) { return cb.checked; }
     ).map(function (cb) { return cb.value; });
 
-    await Promise.all(checked.map(async function (studentId) {
-      await Classes.addStudentToClass(activeClassId, studentId);
-      var student = await Students.getById(studentId);
-      var current = Students.splitClasses(student.currentClasses);
-      if (current.indexOf(cls.name) === -1) {
-        current.push(cls.name);
-        await updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
-      }
-    }));
+    if (checked.length > 0) {
+      // 반 문서는 트랜잭션 1번으로 한꺼번에 갱신한다(선택한 학생 수만큼 개별
+      // 트랜잭션을 동시에 날리면 같은 반 문서에 충돌이 몰려 일부가 누락될 수 있다).
+      await Classes.addStudentsToClass(activeClassId, checked);
+
+      var students = await Promise.all(checked.map(function (studentId) { return Students.getById(studentId); }));
+      await Promise.all(students.filter(Boolean).map(function (student) {
+        var current = Students.splitClasses(student.currentClasses);
+        if (current.indexOf(cls.name) === -1) {
+          current.push(cls.name);
+          return updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
+        }
+      }));
+    }
 
     selectOverlay.hidden = true;
     renderClass(await Classes.getById(activeClassId));

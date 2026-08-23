@@ -107,6 +107,31 @@
     });
   }
 
+  // 학생 여러 명을 한 반에 한꺼번에 배정/제외할 때(엑셀 붙여넣기, 선택 삭제 등) 쓴다.
+  // 학생 수만큼 addStudentToClass를 따로따로 호출하면 같은 반 문서를 동시에 여러 번
+  // 고치게 돼 트랜잭션 충돌이 심해지고, 충돌이 재시도 한도를 넘으면 일부는 반영되지
+  // 않은 채 조용히 유실된다. 반 하나당 트랜잭션 1번으로 끝내면 이 문제가 아예 생기지 않는다.
+  function addStudentsToClass(classId, studentIds) {
+    return updateClass(classId, function (cls) {
+      var existing = {};
+      cls.studentIds.forEach(function (id) { existing[id] = true; });
+      studentIds.forEach(function (id) {
+        if (!existing[id]) {
+          cls.studentIds.push(id);
+          existing[id] = true;
+        }
+      });
+    });
+  }
+
+  function removeStudentsFromClass(classId, studentIds) {
+    return updateClass(classId, function (cls) {
+      var remove = {};
+      studentIds.forEach(function (id) { remove[id] = true; });
+      cls.studentIds = cls.studentIds.filter(function (id) { return !remove[id]; });
+    });
+  }
+
   function rosterIds(cls) {
     if (!cls) return [];
     return isCompleted(cls) ? (cls.completedStudentIds || []) : (cls.studentIds || []);
@@ -253,6 +278,8 @@
     add: add,
     addStudentToClass: addStudentToClass,
     removeStudentFromClass: removeStudentFromClass,
+    addStudentsToClass: addStudentsToClass,
+    removeStudentsFromClass: removeStudentsFromClass,
     completeClass: completeClass,
     revertClass: revertClass,
     removeClass: removeClass,
