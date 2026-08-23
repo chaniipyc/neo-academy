@@ -5,11 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>반 상세 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=11"></script>
+<style>body { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="../js/firebase-init.js"></script>
+<script src="../js/auth.js?v=12"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'class';
-  Auth.requireLogin(SITE_ROOT + 'login.html');
+  window.__authReady = Auth.requireLogin(SITE_ROOT + 'login.html');
 </script>
 </head>
 <body>
@@ -57,9 +62,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=11"></script>
-<script src="../js/students.js?v=11"></script>
-<script src="../js/classes.js?v=11"></script>
+<script src="../js/layout.js?v=12"></script>
+<script src="../js/students.js?v=12"></script>
+<script src="../js/classes.js?v=12"></script>
 <script>
   var classId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -101,8 +106,8 @@
     return Students.update(student.id, data);
   }
 
-  function studentRows(studentIds) {
-    var students = studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+  function studentRows(studentIds, studentById) {
+    var students = studentIds.map(function (id) { return studentById[id]; }).filter(Boolean);
     students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
 
     if (students.length === 0) {
@@ -120,10 +125,14 @@
     }).join('');
   }
 
-  function renderClass(cls) {
+  async function renderClass(cls) {
     breadcrumbName.textContent = '/ ' + cls.name;
     var isCompleted = cls.status === 'completed';
     var rosterIds = isCompleted ? (cls.completedStudentIds || []) : cls.studentIds;
+
+    var allStudents = await Students.getAll();
+    var studentById = {};
+    allStudents.forEach(function (s) { studentById[s.id] = s; });
 
     detailCard.innerHTML =
       '<div class="detail-header">' +
@@ -133,7 +142,7 @@
       '<div class="table-scroll">' +
         '<table class="data-table">' +
           '<thead><tr><th>이름</th><th>학교</th><th>학년</th></tr></thead>' +
-          '<tbody>' + studentRows(rosterIds) + '</tbody>' +
+          '<tbody>' + studentRows(rosterIds, studentById) + '</tbody>' +
         '</table>' +
       '</div>' +
       '<div class="detail-actions">' +
@@ -146,48 +155,48 @@
       '</div>';
 
     if (isCompleted) {
-      document.getElementById('revert-btn').addEventListener('click', function () {
+      document.getElementById('revert-btn').addEventListener('click', async function () {
         var completedIds = cls.completedStudentIds || [];
         if (!confirm('"' + cls.name + '" 반을 되돌릴까요? 완강 처리됐던 학생 ' + completedIds.length + '명이 다시 현재 수강 강좌로 돌아갑니다.')) return;
 
-        completedIds.forEach(function (studentId) {
-          var student = Students.getById(studentId);
+        await Promise.all(completedIds.map(async function (studentId) {
+          var student = studentById[studentId];
           if (!student) return;
           var history = Students.splitClasses(student.classHistory).filter(function (c) { return c !== cls.name; });
           var current = Students.splitClasses(student.currentClasses);
           if (current.indexOf(cls.name) === -1) current.push(cls.name);
-          updateStudentFields(student, {
+          await updateStudentFields(student, {
             currentClasses: Students.joinClasses(current),
             classHistory: Students.joinClasses(history)
           });
-        });
+        }));
 
-        Classes.revertClass(cls.id);
-        renderClass(Classes.getById(cls.id));
+        await Classes.revertClass(cls.id);
+        renderClass(await Classes.getById(cls.id));
       });
     } else {
       document.getElementById('add-student-btn').addEventListener('click', function () {
         openStudentSelect(cls.id);
       });
-      document.getElementById('complete-btn').addEventListener('click', function () {
-        var students = cls.studentIds.map(function (id) { return Students.getById(id); }).filter(Boolean);
+      document.getElementById('complete-btn').addEventListener('click', async function () {
+        var students = cls.studentIds.map(function (id) { return studentById[id]; }).filter(Boolean);
         var confirmMsg = students.length === 0
           ? '"' + cls.name + '" 반을 완강 처리할까요? (현재 등록된 학생 없음)'
           : '"' + cls.name + '" 반을 완강 처리할까요? 현재 학생 ' + students.length + '명이 함께 처리됩니다.';
         if (!confirm(confirmMsg)) return;
 
-        students.forEach(function (student) {
+        await Promise.all(students.map(function (student) {
           var current = Students.splitClasses(student.currentClasses).filter(function (c) { return c !== cls.name; });
           var history = Students.splitClasses(student.classHistory);
           if (history.indexOf(cls.name) === -1) history.push(cls.name);
-          updateStudentFields(student, {
+          return updateStudentFields(student, {
             currentClasses: Students.joinClasses(current),
             classHistory: Students.joinClasses(history)
           });
-        });
+        }));
 
-        Classes.completeClass(cls.id);
-        renderClass(Classes.getById(cls.id));
+        await Classes.completeClass(cls.id);
+        renderClass(await Classes.getById(cls.id));
       });
     }
   }
@@ -201,9 +210,9 @@
   var selectCancel = document.getElementById('student-select-cancel');
   var activeClassId = null;
 
-  function openStudentSelect(id) {
+  async function openStudentSelect(id) {
     activeClassId = id;
-    var cls = Classes.getById(id);
+    var cls = await Classes.getById(id);
     if (!cls) return;
     selectTitle.textContent = cls.name + ' · 학생 추가';
     selectSearch.value = '';
@@ -212,11 +221,12 @@
     selectSearch.focus();
   }
 
-  function renderStudentSelect() {
-    var cls = Classes.getById(activeClassId);
+  async function renderStudentSelect() {
+    var cls = await Classes.getById(activeClassId);
     if (!cls) return;
     var query = selectSearch.value.trim().toLowerCase();
-    var candidates = Students.getAll().filter(function (s) {
+    var allStudents = await Students.getAll();
+    var candidates = allStudents.filter(function (s) {
       return cls.studentIds.indexOf(s.id) === -1;
     });
     if (query) {
@@ -250,37 +260,40 @@
     if (e.target === selectOverlay) selectOverlay.hidden = true;
   });
 
-  selectConfirm.addEventListener('click', function () {
-    var cls = Classes.getById(activeClassId);
+  selectConfirm.addEventListener('click', async function () {
+    var cls = await Classes.getById(activeClassId);
     if (!cls) return;
     var checked = Array.prototype.filter.call(
       selectBody.querySelectorAll('.student-select-checkbox'),
       function (cb) { return cb.checked; }
     ).map(function (cb) { return cb.value; });
 
-    checked.forEach(function (studentId) {
-      Classes.addStudentToClass(activeClassId, studentId);
-      var student = Students.getById(studentId);
+    await Promise.all(checked.map(async function (studentId) {
+      await Classes.addStudentToClass(activeClassId, studentId);
+      var student = await Students.getById(studentId);
       var current = Students.splitClasses(student.currentClasses);
       if (current.indexOf(cls.name) === -1) {
         current.push(cls.name);
-        updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
+        await updateStudentFields(student, { currentClasses: Students.joinClasses(current) });
       }
-    });
+    }));
 
     selectOverlay.hidden = true;
-    renderClass(Classes.getById(activeClassId));
+    renderClass(await Classes.getById(activeClassId));
   });
 
-  var cls = classId ? Classes.getById(classId) : null;
+  window.__authReady.then(async function () {
+    document.body.style.visibility = 'visible';
+    var cls = classId ? await Classes.getById(classId) : null;
 
-  if (cls) {
-    renderClass(cls);
-  } else {
-    detailCard.innerHTML =
-      '<p class="body-md">반 정보를 찾을 수 없습니다.</p>' +
-      '<div class="detail-actions"><a class="btn-secondary" href="./class.html">반별 관리로 돌아가기</a></div>';
-  }
+    if (cls) {
+      renderClass(cls);
+    } else {
+      detailCard.innerHTML =
+        '<p class="body-md">반 정보를 찾을 수 없습니다.</p>' +
+        '<div class="detail-actions"><a class="btn-secondary" href="./class.html">반별 관리로 돌아가기</a></div>';
+    }
+  });
 </script>
 </body>
 </html>

@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>로그인 | NEO ACADEMY</title>
 <link rel="stylesheet" href="./css/style.css">
-<script src="./js/auth.js?v=11"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="./js/firebase-init.js"></script>
+<script src="./js/auth.js?v=12"></script>
 <script>
   const SITE_ROOT = './';
   const ACTIVE_CATEGORY = null;
@@ -40,22 +44,26 @@
 
 <div id="site-footer"></div>
 
-<script src="./js/layout.js?v=11"></script>
+<script src="./js/layout.js?v=12"></script>
 <script>
   var form = document.getElementById('login-form');
   var errorEl = document.getElementById('login-error');
+  var submitBtn = form.querySelector('button[type="submit"]');
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    var result = Auth.login(form.id.value, form.password.value);
+    errorEl.hidden = true;
+    submitBtn.disabled = true;
 
-    if (!result.ok) {
-      errorEl.textContent = result.message;
-      errorEl.hidden = false;
-      return;
-    }
-
-    location.href = SITE_ROOT + (result.role === 'admin' ? 'admin.html' : 'index.html');
+    Auth.login(form.id.value, form.password.value).then(function (result) {
+      if (!result.ok) {
+        errorEl.textContent = result.message;
+        errorEl.hidden = false;
+        submitBtn.disabled = false;
+        return;
+      }
+      location.href = SITE_ROOT + (result.role === 'admin' ? 'admin.html' : 'index.html');
+    });
   });
 </script>
 </body>

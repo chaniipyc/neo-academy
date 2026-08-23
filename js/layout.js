@@ -1,7 +1,7 @@
 (function () {
   var root = typeof SITE_ROOT !== 'undefined' ? SITE_ROOT : './';
   var active = typeof ACTIVE_CATEGORY !== 'undefined' ? ACTIVE_CATEGORY : null;
-  var session = window.Auth ? window.Auth.getSession() : null;
+  var session = null;
 
   var categories = [
     { key: 'students', label: '학생 정보', href: root + 'pages/students.html' },
@@ -66,8 +66,9 @@
     var logoutBtn = document.getElementById('auth-logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
-        window.Auth.logout();
-        location.href = root + 'index.html';
+        window.Auth.logout().then(function () {
+          location.href = root + 'index.html';
+        });
       });
     }
 
@@ -95,6 +96,17 @@
       '</footer>';
   }
 
-  renderHeader();
-  renderFooter();
+  function init() {
+    renderFooter();
+    if (!window.Auth) {
+      renderHeader();
+      return;
+    }
+    window.Auth.ready().then(function () {
+      session = window.Auth.getSession();
+      renderHeader();
+    });
+  }
+
+  init();
 })();

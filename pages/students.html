@@ -5,11 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>학생 정보 | NEO ACADEMY</title>
 <link rel="stylesheet" href="../css/style.css">
-<script src="../js/auth.js?v=11"></script>
+<style>body { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="../js/firebase-init.js"></script>
+<script src="../js/auth.js?v=12"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
-  Auth.requireLogin(SITE_ROOT + 'login.html');
+  window.__authReady = Auth.requireLogin(SITE_ROOT + 'login.html');
 </script>
 </head>
 <body>
@@ -186,9 +191,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=11"></script>
-<script src="../js/students.js?v=11"></script>
-<script src="../js/classes.js?v=11"></script>
+<script src="../js/layout.js?v=12"></script>
+<script src="../js/students.js?v=12"></script>
+<script src="../js/classes.js?v=12"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -206,8 +211,7 @@
     return div.innerHTML;
   }
 
-  function renderClassCheckboxes(selectedNames) {
-    var names = Classes.getClassNames();
+  function renderClassCheckboxes(names, selectedNames) {
     classCheckboxGroup.innerHTML = names.map(function (name) {
       var isChecked = selectedNames.indexOf(name) !== -1;
       return (
@@ -230,15 +234,25 @@
       .map(function (cb) { return cb.value; });
   }
 
-  function syncClassRosters(studentId, oldNames, newNames) {
-    oldNames.filter(function (n) { return newNames.indexOf(n) === -1; }).forEach(function (n) {
-      var cls = Classes.getByName(n);
-      if (cls) Classes.removeStudentFromClass(cls.id, studentId);
+  async function syncClassRosters(studentId, oldNames, newNames) {
+    var removed = oldNames.filter(function (n) { return newNames.indexOf(n) === -1; });
+    var added = newNames.filter(function (n) { return oldNames.indexOf(n) === -1; });
+    if (removed.length === 0 && added.length === 0) return;
+
+    var allClasses = await Classes.getAll();
+    var classByName = {};
+    allClasses.forEach(function (c) { classByName[c.name] = c; });
+
+    var ops = [];
+    removed.forEach(function (n) {
+      var cls = classByName[n];
+      if (cls) ops.push(Classes.removeStudentFromClass(cls.id, studentId));
     });
-    newNames.filter(function (n) { return oldNames.indexOf(n) === -1; }).forEach(function (n) {
-      var cls = Classes.getByName(n);
-      if (cls) Classes.addStudentToClass(cls.id, studentId);
+    added.forEach(function (n) {
+      var cls = classByName[n];
+      if (cls) ops.push(Classes.addStudentToClass(cls.id, studentId));
     });
+    await Promise.all(ops);
   }
 
   var filterCheckboxes = document.querySelectorAll('.filter-checkbox');
@@ -248,11 +262,11 @@
       .map(function (cb) { return cb.value; });
   }
 
-  function renderClassLinks(classesStr) {
+  function renderClassLinks(classesStr, classByName) {
     var names = Students.splitClasses(classesStr);
     if (names.length === 0) return '';
     return names.map(function (name) {
-      var cls = Classes.getByName(name);
+      var cls = classByName[name];
       if (!cls) return escapeHtml(name);
       return '<a class="cell-link" href="./class-detail.html?id=' + encodeURIComponent(cls.id) + '">' + escapeHtml(name) + '</a>';
     }).join(', ');
@@ -275,8 +289,14 @@
     selectAllCheckbox.indeterminate = !allSelected && someSelected;
   }
 
-  function renderTable() {
-    var students = Students.search(searchInput.value, getSelectedFields());
+  async function renderTable() {
+    var results = await Promise.all([
+      Students.search(searchInput.value, getSelectedFields()),
+      Classes.getAll()
+    ]);
+    var students = results[0];
+    var classByName = {};
+    results[1].forEach(function (c) { classByName[c.name] = c; });
     visibleIds = students.map(function (s) { return s.id; });
 
     if (students.length === 0) {
@@ -293,7 +313,7 @@
           '<td>' + escapeHtml(s.name) + '</td>' +
           '<td>' + escapeHtml(s.school) + '</td>' +
           '<td>' + escapeHtml(s.grade) + '</td>' +
-          '<td>' + renderClassLinks(s.currentClasses) + '</td>' +
+          '<td>' + renderClassLinks(s.currentClasses, classByName) + '</td>' +
           '<td class="row-actions">' +
             '<a class="row-action view" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">자세히 보기</a>' +
             '<button type="button" class="row-action edit" data-id="' + s.id + '">수정</button>' +
@@ -306,7 +326,7 @@
     updateSelectAllState();
   }
 
-  function openModal(student) {
+  async function openModal(student) {
     form.reset();
     if (student) {
       modalTitle.textContent = '학생 정보 수정';
@@ -330,7 +350,8 @@
       form.id.value = '';
       previousClasses = [];
     }
-    renderClassCheckboxes(previousClasses);
+    var names = await Classes.getClassNames();
+    renderClassCheckboxes(names, previousClasses);
     overlay.hidden = false;
     form.name.focus();
   }
@@ -345,7 +366,7 @@
     if (e.target === overlay) closeModal();
   });
 
-  form.addEventListener('submit', function (e) {
+  form.addEventListener('submit', async function (e) {
     e.preventDefault();
     var selectedClasses = getCheckedClasses();
     var data = {
@@ -373,37 +394,37 @@
     var studentId;
     if (form.id.value) {
       studentId = form.id.value;
-      Students.update(studentId, data);
+      await Students.update(studentId, data);
     } else {
-      studentId = Students.add(data).id;
+      studentId = (await Students.add(data)).id;
     }
 
-    syncClassRosters(studentId, previousClasses, selectedClasses);
+    await syncClassRosters(studentId, previousClasses, selectedClasses);
 
     closeModal();
     renderTable();
   });
 
-  function removeStudentFromAllClasses(studentId) {
-    Classes.getAll().forEach(function (cls) {
-      if (cls.studentIds.indexOf(studentId) !== -1) {
-        Classes.removeStudentFromClass(cls.id, studentId);
-      }
-    });
+  async function removeStudentFromAllClasses(studentId) {
+    var classes = await Classes.getAll();
+    var ops = classes
+      .filter(function (cls) { return cls.studentIds.indexOf(studentId) !== -1; })
+      .map(function (cls) { return Classes.removeStudentFromClass(cls.id, studentId); });
+    await Promise.all(ops);
   }
 
-  tbody.addEventListener('click', function (e) {
+  tbody.addEventListener('click', async function (e) {
     var editBtn = e.target.closest('.row-action.edit');
     if (editBtn) {
-      openModal(Students.getById(editBtn.dataset.id));
+      openModal(await Students.getById(editBtn.dataset.id));
       return;
     }
     var deleteBtn = e.target.closest('.row-action.delete');
     if (deleteBtn) {
-      var student = Students.getById(deleteBtn.dataset.id);
+      var student = await Students.getById(deleteBtn.dataset.id);
       if (student && confirm(student.name + ' 학생 정보를 삭제할까요?')) {
-        removeStudentFromAllClasses(student.id);
-        Students.remove(deleteBtn.dataset.id);
+        await removeStudentFromAllClasses(student.id);
+        await Students.remove(deleteBtn.dataset.id);
         selectedIds.delete(student.id);
         renderTable();
       }
@@ -432,10 +453,9 @@
     renderTable();
   });
 
-  bulkDeleteBtn.addEventListener('click', function () {
-    var students = Array.prototype.filter.call(
-      Array.from(selectedIds), function (id) { return Students.getById(id); }
-    ).map(function (id) { return Students.getById(id); });
+  bulkDeleteBtn.addEventListener('click', async function () {
+    var fetched = await Promise.all(Array.from(selectedIds).map(function (id) { return Students.getById(id); }));
+    var students = fetched.filter(Boolean);
 
     if (students.length === 0) return;
 
@@ -444,10 +464,10 @@
     var confirmMsg = students.length + '명의 학생 정보를 삭제할까요?\n(' + preview + ')\n이 작업은 되돌릴 수 없으며, 반 명단에서도 함께 제외됩니다.';
     if (!confirm(confirmMsg)) return;
 
-    students.forEach(function (s) {
-      removeStudentFromAllClasses(s.id);
-      Students.remove(s.id);
-    });
+    await Promise.all(students.map(async function (s) {
+      await removeStudentFromAllClasses(s.id);
+      await Students.remove(s.id);
+    }));
     selectedIds.clear();
     updateBulkDeleteBtn();
     renderTable();
@@ -460,8 +480,6 @@
       renderTable();
     });
   });
-
-  renderTable();
 
   // ---- Paste from Excel ----
   var pasteBtn = document.getElementById('paste-student-btn');
@@ -527,16 +545,28 @@
   });
   pasteTextarea.addEventListener('input', updatePastePreview);
 
-  pasteConfirmBtn.addEventListener('click', function () {
+  pasteConfirmBtn.addEventListener('click', async function () {
     if (parsedStudents.length === 0) return;
-    var created = Students.addMany(parsedStudents);
+    var created = await Students.addMany(parsedStudents);
+    var allClasses = await Classes.getAll();
+    var classByName = {};
+    allClasses.forEach(function (c) { classByName[c.name] = c; });
+
+    var ops = [];
     created.forEach(function (s) {
       Students.splitClasses(s.currentClasses).forEach(function (className) {
-        var cls = Classes.getByName(className);
-        if (cls) Classes.addStudentToClass(cls.id, s.id);
+        var cls = classByName[className];
+        if (cls) ops.push(Classes.addStudentToClass(cls.id, s.id));
       });
     });
+    await Promise.all(ops);
+
     closePasteModal();
+    renderTable();
+  });
+
+  window.__authReady.then(function () {
+    document.body.style.visibility = 'visible';
     renderTable();
   });
 </script>

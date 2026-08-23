@@ -1,18 +1,12 @@
 (function (global) {
-  var KEY = 'neo_academy_classes';
+  var COLLECTION = 'classes';
 
   function getAll() {
-    try {
-      var raw = localStorage.getItem(KEY);
-      var list = raw ? JSON.parse(raw) : [];
+    return db.collection(COLLECTION).get().then(function (snap) {
+      var list = [];
+      snap.forEach(function (doc) { list.push(doc.data()); });
       return list.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveAll(list) {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    });
   }
 
   function genId() {
@@ -20,11 +14,15 @@
   }
 
   function getById(id) {
-    return getAll().filter(function (c) { return c.id === id; })[0] || null;
+    return db.collection(COLLECTION).doc(id).get().then(function (doc) {
+      return doc.exists ? doc.data() : null;
+    });
   }
 
   function getByName(name) {
-    return getAll().filter(function (c) { return c.name === name; })[0] || null;
+    return db.collection(COLLECTION).where('name', '==', name).limit(1).get().then(function (snap) {
+      return snap.empty ? null : snap.docs[0].data();
+    });
   }
 
   function isCompleted(cls) {
@@ -32,75 +30,79 @@
   }
 
   function getActive() {
-    return getAll().filter(function (c) { return !isCompleted(c); });
+    return getAll().then(function (list) { return list.filter(function (c) { return !isCompleted(c); }); });
   }
 
   function getCompleted() {
-    return getAll().filter(isCompleted);
+    return getAll().then(function (list) { return list.filter(isCompleted); });
   }
 
   function getClassNames() {
-    return getActive().map(function (c) { return c.name; });
+    return getActive().then(function (list) { return list.map(function (c) { return c.name; }); });
   }
 
   function add(name) {
     name = (name || '').trim();
-    if (!name) return { ok: false, message: '반 이름을 입력해 주세요.' };
-    var list = getAll();
-    if (list.some(function (c) { return c.name === name; })) {
-      return { ok: false, message: '이미 존재하는 반입니다.' };
-    }
-    var cls = { id: genId(), name: name, studentIds: [], status: 'active', completedAt: null, completedStudentIds: [] };
-    list.push(cls);
-    saveAll(list);
-    return { ok: true, class: cls };
+    if (!name) return Promise.resolve({ ok: false, message: '반 이름을 입력해 주세요.' });
+
+    return getByName(name).then(function (existing) {
+      if (existing) return { ok: false, message: '이미 존재하는 반입니다.' };
+      var cls = { id: genId(), name: name, studentIds: [], status: 'active', completedAt: null, completedStudentIds: [] };
+      return db.collection(COLLECTION).doc(cls.id).set(cls).then(function () { return { ok: true, class: cls }; });
+    });
+  }
+
+  function saveClass(cls) {
+    return db.collection(COLLECTION).doc(cls.id).set(cls).then(function () { return cls; });
   }
 
   function completeClass(classId) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    cls.completedStudentIds = cls.studentIds.slice();
-    cls.studentIds = [];
-    cls.status = 'completed';
-    cls.completedAt = new Date().toISOString();
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      cls.completedStudentIds = cls.studentIds.slice();
+      cls.studentIds = [];
+      cls.status = 'completed';
+      cls.completedAt = new Date().toISOString();
+      return saveClass(cls);
+    });
   }
 
   function revertClass(classId) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    cls.studentIds = (cls.completedStudentIds || []).slice();
-    cls.completedStudentIds = [];
-    cls.status = 'active';
-    cls.completedAt = null;
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      cls.studentIds = (cls.completedStudentIds || []).slice();
+      cls.completedStudentIds = [];
+      cls.status = 'active';
+      cls.completedAt = null;
+      return saveClass(cls);
+    });
   }
 
   function removeClass(classId) {
-    saveAll(getAll().filter(function (c) { return c.id !== classId; }));
+    return db.collection(COLLECTION).doc(classId).delete();
   }
 
   function addStudentToClass(classId, studentId) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    if (cls.studentIds.indexOf(studentId) === -1) {
-      cls.studentIds.push(studentId);
-      saveAll(list);
-    }
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      if (cls.studentIds.indexOf(studentId) === -1) {
+        cls.studentIds.push(studentId);
+        return saveClass(cls);
+      }
+      return cls;
+    });
   }
 
   function removeStudentFromClass(classId, studentId) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    var idx = cls.studentIds.indexOf(studentId);
-    if (idx !== -1) {
-      cls.studentIds.splice(idx, 1);
-      saveAll(list);
-    }
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      var idx = cls.studentIds.indexOf(studentId);
+      if (idx !== -1) {
+        cls.studentIds.splice(idx, 1);
+        return saveClass(cls);
+      }
+      return cls;
+    });
   }
 
   function rosterIds(cls) {
@@ -110,65 +112,67 @@
 
   // ---- Attendance ----
   function getAttendanceDates(classId) {
-    var cls = getById(classId);
-    return cls && cls.attendanceDates ? cls.attendanceDates.slice() : [];
+    return getById(classId).then(function (cls) {
+      return cls && cls.attendanceDates ? cls.attendanceDates.slice() : [];
+    });
   }
 
   function getAttendance(classId, date) {
-    var cls = getById(classId);
-    return (cls && cls.attendance && cls.attendance[date]) || {};
+    return getById(classId).then(function (cls) {
+      return (cls && cls.attendance && cls.attendance[date]) || {};
+    });
   }
 
   function bulkMarkAttendance(classId, date, status) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !date) return;
-    if (!cls.attendanceDates) cls.attendanceDates = [];
-    if (!cls.attendance) cls.attendance = {};
-    if (cls.attendanceDates.indexOf(date) === -1) {
-      cls.attendanceDates.push(date);
-      cls.attendanceDates.sort();
-    }
-    if (!cls.attendance[date]) cls.attendance[date] = {};
-    rosterIds(cls).forEach(function (sid) { cls.attendance[date][sid] = status; });
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls || !date) return null;
+      if (!cls.attendanceDates) cls.attendanceDates = [];
+      if (!cls.attendance) cls.attendance = {};
+      if (cls.attendanceDates.indexOf(date) === -1) {
+        cls.attendanceDates.push(date);
+        cls.attendanceDates.sort();
+      }
+      if (!cls.attendance[date]) cls.attendance[date] = {};
+      rosterIds(cls).forEach(function (sid) { cls.attendance[date][sid] = status; });
+      return saveClass(cls);
+    });
   }
 
   function addAttendanceDate(classId, date) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !date) return;
-    if (!cls.attendanceDates) cls.attendanceDates = [];
-    if (!cls.attendance) cls.attendance = {};
-    if (cls.attendanceDates.indexOf(date) === -1) {
-      cls.attendanceDates.push(date);
-      cls.attendanceDates.sort();
-    }
-    if (!cls.attendance[date]) cls.attendance[date] = {};
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls || !date) return null;
+      if (!cls.attendanceDates) cls.attendanceDates = [];
+      if (!cls.attendance) cls.attendance = {};
+      if (cls.attendanceDates.indexOf(date) === -1) {
+        cls.attendanceDates.push(date);
+        cls.attendanceDates.sort();
+      }
+      if (!cls.attendance[date]) cls.attendance[date] = {};
+      return saveClass(cls);
+    });
   }
 
   function setAttendance(classId, date, studentId, status) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !date) return;
-    if (!cls.attendance) cls.attendance = {};
-    if (!cls.attendance[date]) cls.attendance[date] = {};
-    cls.attendance[date][studentId] = status;
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls || !date) return null;
+      if (!cls.attendance) cls.attendance = {};
+      if (!cls.attendance[date]) cls.attendance[date] = {};
+      cls.attendance[date][studentId] = status;
+      return saveClass(cls);
+    });
   }
 
   function removeAttendanceDate(classId, date) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    if (cls.attendanceDates) {
-      cls.attendanceDates = cls.attendanceDates.filter(function (d) { return d !== date; });
-    }
-    if (cls.attendance && cls.attendance[date] !== undefined) {
-      delete cls.attendance[date];
-    }
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      if (cls.attendanceDates) {
+        cls.attendanceDates = cls.attendanceDates.filter(function (d) { return d !== date; });
+      }
+      if (cls.attendance && cls.attendance[date] !== undefined) {
+        delete cls.attendance[date];
+      }
+      return saveClass(cls);
+    });
   }
 
   // ---- Tests ----
@@ -177,74 +181,74 @@
   }
 
   function getExams(classId) {
-    var cls = getById(classId);
-    return cls && cls.exams ? cls.exams.slice() : [];
+    return getById(classId).then(function (cls) {
+      return cls && cls.exams ? cls.exams.slice() : [];
+    });
   }
 
   function addExam(classId, date, maxScore, name) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !date) return null;
-    if (!cls.exams) cls.exams = [];
-    var exam = { id: genExamId(), date: date, maxScore: maxScore, name: name || '', scores: {} };
-    cls.exams.push(exam);
-    cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
-    saveAll(list);
-    return exam;
+    return getById(classId).then(function (cls) {
+      if (!cls || !date) return null;
+      if (!cls.exams) cls.exams = [];
+      var exam = { id: genExamId(), date: date, maxScore: maxScore, name: name || '', scores: {} };
+      cls.exams.push(exam);
+      cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
+      return saveClass(cls).then(function () { return exam; });
+    });
   }
 
   function removeExam(classId, examId) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !cls.exams) return;
-    cls.exams = cls.exams.filter(function (e) { return e.id !== examId; });
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls || !cls.exams) return null;
+      cls.exams = cls.exams.filter(function (e) { return e.id !== examId; });
+      return saveClass(cls);
+    });
   }
 
   function setExamName(classId, examId, name) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-    if (!exam) return;
-    exam.name = name;
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+      if (!exam) return null;
+      exam.name = name;
+      return saveClass(cls);
+    });
   }
 
   function setExamDate(classId, examId, date) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls || !date) return;
-    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-    if (!exam) return;
-    exam.date = date;
-    cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls || !date) return null;
+      var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+      if (!exam) return null;
+      exam.date = date;
+      cls.exams.sort(function (a, b) { return a.date.localeCompare(b.date); });
+      return saveClass(cls);
+    });
   }
 
   function setExamMaxScore(classId, examId, maxScore) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-    if (!exam) return;
-    exam.maxScore = maxScore;
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+      if (!exam) return null;
+      exam.maxScore = maxScore;
+      return saveClass(cls);
+    });
   }
 
   function setExamScore(classId, examId, studentId, score) {
-    var list = getAll();
-    var cls = list.filter(function (c) { return c.id === classId; })[0];
-    if (!cls) return;
-    var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
-    if (!exam) return;
-    if (!exam.scores) exam.scores = {};
-    if (score === null || score === '') {
-      delete exam.scores[studentId];
-    } else {
-      exam.scores[studentId] = score;
-    }
-    saveAll(list);
+    return getById(classId).then(function (cls) {
+      if (!cls) return null;
+      var exam = (cls.exams || []).filter(function (e) { return e.id === examId; })[0];
+      if (!exam) return null;
+      if (!exam.scores) exam.scores = {};
+      if (score === null || score === '') {
+        delete exam.scores[studentId];
+      } else {
+        exam.scores[studentId] = score;
+      }
+      return saveClass(cls);
+    });
   }
 
   global.Classes = {
