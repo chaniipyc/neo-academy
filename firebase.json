@@ -1,0 +1,21 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      ".git/**",
+      ".firebase/**",
+      "**/node_modules/**",
+      "DESIGN-slack.md",
+      "DEVLOG.md",
+      "NEO_logo.png",
+      "dev-server.py",
+      "firestore.rules",
+      "정리.txt"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
