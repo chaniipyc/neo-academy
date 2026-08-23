@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=12"></script>
+<script src="../js/auth.js?v=13"></script>
 <script>
   const SITE_ROOT = '../';
 </script>
@@ -63,6 +63,10 @@
           <span class="help-note-label">TIP</span>
           <p>이 "도움말" 페이지는 화면 왼쪽 위에서 로그인 여부와 상관없이 언제든 다시 볼 수 있습니다.</p>
         </div>
+        <div class="help-note">
+          <span class="help-note-label">TIP</span>
+          <p>로그인 후 화면 위쪽 "비밀번호 변경"에서 언제든 원하는 비밀번호로 직접 바꿀 수 있습니다 (8자 이상).</p>
+        </div>
       </section>
 
       <section class="help-section" id="admin">
@@ -72,8 +76,9 @@
         </div>
         <p class="body-md">원장님(관리자) 계정으로 로그인했을 때만 화면 오른쪽 위에 보이는, 선생님 계정을 만들고 관리하는 화면입니다.</p>
         <ol class="help-steps">
-          <li class="body-md">"관리자 페이지"를 누른 뒤, 선생님 성함을 ID로 사용해 비밀번호와 함께 입력하고 "계정 생성"을 누릅니다.</li>
+          <li class="body-md">"관리자 페이지"를 누른 뒤, 선생님 성함을 ID로 사용해 비밀번호와 함께 입력하고 "계정 생성"을 누릅니다 (8자 이상).</li>
           <li class="body-md">생성된 ID와 비밀번호를 해당 선생님께 알려주시면 그 정보로 바로 로그인할 수 있습니다.</li>
+          <li class="body-md">선생님이 비밀번호를 잊어버렸다면 목록에서 "비밀번호 재설정"을 눌러 새 비밀번호를 정한 뒤 알려주세요.</li>
           <li class="body-md">더 이상 필요 없는 계정은 목록에서 "삭제"를 눌러 없앨 수 있습니다.</li>
         </ol>
         <div class="help-note warn">
@@ -258,7 +263,7 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=12"></script>
+<script src="../js/layout.js?v=13"></script>
 <script>
   var sidebarLinks = Array.prototype.slice.call(document.querySelectorAll('.help-sidebar-link'));
   var sections = Array.prototype.slice.call(document.querySelectorAll('.help-section'));

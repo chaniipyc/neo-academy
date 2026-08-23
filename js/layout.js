@@ -31,6 +31,7 @@
     return (
       '<span class="auth-name caption">' + nameLabel + '</span>' +
       adminLink +
+      '<a class="auth-link" href="' + root + 'change-password.html">비밀번호 변경</a>' +
       '<button type="button" class="auth-logout-btn" id="auth-logout-btn">로그아웃</button>'
     );
   }

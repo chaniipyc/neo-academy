@@ -557,6 +557,12 @@ textarea.text-input {
   margin: 0;
 }
 
+.auth-success {
+  color: var(--color-success);
+  font-size: 14px;
+  margin: 0;
+}
+
 .auth-hint {
   color: var(--color-ink-mute);
   text-align: center;
@@ -634,11 +640,17 @@ textarea.text-input {
   padding: var(--space-xxl);
 }
 
-.admin-delete {
+.admin-actions {
+  display: flex;
+  gap: var(--space-xs);
+  white-space: nowrap;
+}
+
+.admin-delete,
+.admin-reset {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--color-error);
   font-family: inherit;
   font-size: 14px;
   font-weight: 700;
@@ -647,8 +659,20 @@ textarea.text-input {
   transition: background-color 0.12s var(--ease-standard);
 }
 
+.admin-delete {
+  color: var(--color-error);
+}
+
 .admin-delete:hover {
   background: #fdf1ec;
+}
+
+.admin-reset {
+  color: var(--color-primary);
+}
+
+.admin-reset:hover {
+  background: var(--color-primary-soft);
 }
 
 /* ---------- Data pages (students) ---------- */
