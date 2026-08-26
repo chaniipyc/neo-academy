@@ -79,6 +79,23 @@
     return db.collection(COLLECTION).doc(id).delete();
   }
 
+  // 여러 명을 한꺼번에 삭제할 때(전체 선택 삭제 등) 학생 수만큼 개별 delete 요청을
+  // 동시에 날리면 그중 하나만 실패해도 Promise.all 전체가 실패해 화면이 멈춘 것처럼
+  // 보인다. batch 하나로 묶으면 요청 자체가 1번(400개 초과 시 여러 batch)이라 안전하다.
+  function removeMany(ids) {
+    var chunks = [];
+    for (var i = 0; i < ids.length; i += 400) {
+      chunks.push(ids.slice(i, i + 400));
+    }
+    return chunks.reduce(function (chain, chunk) {
+      return chain.then(function () {
+        var batch = db.batch();
+        chunk.forEach(function (id) { batch.delete(db.collection(COLLECTION).doc(id)); });
+        return batch.commit();
+      });
+    }, Promise.resolve());
+  }
+
   function getById(id) {
     return db.collection(COLLECTION).doc(id).get().then(function (doc) {
       return doc.exists ? doc.data() : null;
@@ -113,6 +130,7 @@
     parsePaste: parsePaste,
     update: update,
     remove: remove,
+    removeMany: removeMany,
     getById: getById,
     search: search,
     splitClasses: splitClasses,

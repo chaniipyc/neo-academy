@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>입반 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>body { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="../js/firebase-init.js"></script>
+<script src="../js/auth.js?v=17"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'admission';
+  window.__authReady = Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="heading-lg">입반</h1>
+    <p class="body-md placeholder-desc">입반 테스트를 보러 온 학생의 이름과 날짜, 시험별 점수를 기록합니다. 맨 아래 칸에 이름을 입력하면 새 학생이, 맨 오른쪽 빈 칸에 시험명을 입력하면 새 시험 열이 생깁니다. 열 이름 옆 화살표를 누르면 그 기준으로 정렬됩니다.</p>
+  </div>
+
+  <div class="record-table-wrap" id="record-table-wrap">
+    <p class="body-md">불러오는 중입니다...</p>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js?v=17"></script>
+<script src="../js/admissions.js?v=17"></script>
+<script>
+  var wrap = document.getElementById('record-table-wrap');
+  var sortState = { key: null, dir: 'asc' };
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function computeStats(exam, candidateIds) {
+    var scores = candidateIds
+      .map(function (id) { return exam.scores[id]; })
+      .filter(function (v) { return v !== undefined && v !== null && v !== ''; })
+      .map(Number);
+    if (scores.length === 0) return { avg: null, max: null };
+    var avg = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+    var max = Math.max.apply(null, scores);
+    return { avg: avg, max: max };
+  }
+
+  function sortArrowHtml(key) {
+    var isActive = sortState.key === key;
+    var upClass = isActive && sortState.dir === 'asc' ? ' is-active' : '';
+    var downClass = isActive && sortState.dir === 'desc' ? ' is-active' : '';
+    return (
+      '<button type="button" class="sort-toggle-btn" data-sort-key="' + key + '" aria-label="정렬">' +
+        '<span class="sort-arrow sort-arrow-up' + upClass + '">▲</span>' +
+        '<span class="sort-arrow sort-arrow-down' + downClass + '">▼</span>' +
+      '</button>'
+    );
+  }
+
+  function sortedCandidates(candidates, examsById) {
+    if (!sortState.key) return candidates.slice();
+    var list = candidates.slice();
+    var dir = sortState.dir === 'asc' ? 1 : -1;
+
+    if (sortState.key === 'name') {
+      list.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko') * dir; });
+    } else if (sortState.key === 'date') {
+      list.sort(function (a, b) {
+        var ad = a.date || '', bd = b.date || '';
+        if (ad === bd) return 0;
+        if (ad === '') return 1;
+        if (bd === '') return -1;
+        return (ad < bd ? -1 : 1) * dir;
+      });
+    } else if (sortState.key.indexOf('exam:') === 0) {
+      var examId = sortState.key.slice(5);
+      var exam = examsById[examId];
+      list.sort(function (a, b) {
+        var av = exam && exam.scores ? exam.scores[a.id] : undefined;
+        var bv = exam && exam.scores ? exam.scores[b.id] : undefined;
+        var aMissing = av === undefined || av === null || av === '';
+        var bMissing = bv === undefined || bv === null || bv === '';
+        if (aMissing && bMissing) return 0;
+        if (aMissing) return 1;
+        if (bMissing) return -1;
+        return (Number(av) - Number(bv)) * dir;
+      });
+    }
+    return list;
+  }
+
+  async function render() {
+    var board = await Admissions.getBoard();
+    var candidates = board.candidates || [];
+    var exams = board.exams || [];
+    var examsById = {};
+    exams.forEach(function (e) { examsById[e.id] = e; });
+
+    var candidateIds = candidates.map(function (c) { return c.id; });
+    var statsByExam = {};
+    exams.forEach(function (exam) {
+      statsByExam[exam.id] = computeStats(exam, candidateIds);
+    });
+
+    var thead =
+      '<tr>' +
+        '<th><div class="th-with-sort"><span>이름</span>' + sortArrowHtml('name') + '</div></th>' +
+        '<th><div class="th-with-sort"><span>날짜</span>' + sortArrowHtml('date') + '</div></th>' +
+        exams.map(function (exam) {
+          return (
+            '<th>' +
+              '<div class="exam-header">' +
+                '<div class="th-with-sort">' +
+                  '<input type="text" class="exam-name-input" data-exam-id="' + exam.id + '" value="' + escapeHtml(exam.name || '') + '" placeholder="시험명">' +
+                  sortArrowHtml('exam:' + exam.id) +
+                '</div>' +
+                '<input type="number" class="max-score-input" data-exam-id="' + exam.id + '" value="' + exam.maxScore + '" title="만점">' +
+                '<button type="button" class="btn-danger btn-tiny exam-delete-btn" data-exam-id="' + exam.id + '">삭제</button>' +
+              '</div>' +
+            '</th>'
+          );
+        }).join('') +
+        '<th class="new-col-header">' +
+          '<div class="exam-header">' +
+            '<input type="text" id="new-exam-name-input" class="exam-name-input" placeholder="시험명">' +
+            '<input type="number" id="new-exam-maxscore-input" class="max-score-input" placeholder="만점" value="100">' +
+          '</div>' +
+        '</th>' +
+      '</tr>';
+
+    var sorted = sortedCandidates(candidates, examsById);
+    var candidateIdOrder = sorted.map(function (c) { return c.id; });
+
+    var tbody = sorted.map(function (c) {
+      var examCells = exams.map(function (exam) {
+        var score = exam.scores ? exam.scores[c.id] : undefined;
+        var stats = statsByExam[exam.id];
+        var cellClass = '';
+        if (score !== undefined && score !== null && score !== '' && stats.avg !== null) {
+          if (Number(score) === stats.max) cellClass = ' score-cell-high';
+          else if (Number(score) < Math.floor(stats.avg)) cellClass = ' score-cell-low';
+        }
+        return (
+          '<td class="record-cell' + cellClass + '">' +
+            '<input type="number" class="score-input" data-exam-id="' + exam.id + '" data-candidate-id="' + c.id + '" min="0" max="' + exam.maxScore + '" value="' + (score !== undefined ? score : '') + '">' +
+          '</td>'
+        );
+      }).join('');
+
+      return (
+        '<tr>' +
+          '<td>' +
+            '<div class="admission-name-cell">' +
+              '<span>' + escapeHtml(c.name) + '</span>' +
+              '<button type="button" class="icon-delete-btn candidate-delete-btn" data-candidate-id="' + c.id + '" aria-label="삭제" title="삭제">×</button>' +
+            '</div>' +
+          '</td>' +
+          '<td><input type="date" class="candidate-date-input" data-candidate-id="' + c.id + '" value="' + (c.date || '') + '"></td>' +
+          examCells +
+          '<td class="new-col-cell"></td>' +
+        '</tr>'
+      );
+    }).join('');
+
+    var newRow =
+      '<tr>' +
+        '<td><input type="text" id="new-candidate-name-input" class="exam-name-input" placeholder="이름 입력 후 Enter"></td>' +
+        '<td colspan="' + (1 + exams.length + 1) + '"></td>' +
+      '</tr>';
+
+    var footer = '';
+    if (exams.length > 0 && candidates.length > 0) {
+      var avgRow = '<tr class="stats-row"><td colspan="2">평균</td>' + exams.map(function (exam) {
+        var stats = statsByExam[exam.id];
+        return '<td>' + (stats.avg === null ? '-' : Number(stats.avg.toFixed(1))) + '</td>';
+      }).join('') + '<td class="new-col-cell"></td></tr>';
+
+      var maxRow = '<tr class="stats-row"><td colspan="2">최고 점수</td>' + exams.map(function (exam) {
+        var stats = statsByExam[exam.id];
+        return '<td>' + (stats.max === null ? '-' : stats.max) + '</td>';
+      }).join('') + '<td class="new-col-cell"></td></tr>';
+
+      footer = '<tfoot>' + avgRow + maxRow + '</tfoot>';
+    }
+
+    if (candidates.length === 0 && exams.length === 0) {
+      wrap.innerHTML =
+        '<div class="table-scroll">' +
+          '<table class="data-table sticky-first-col">' +
+            '<thead>' + thead + '</thead>' +
+            '<tbody>' + newRow + '</tbody>' +
+          '</table>' +
+        '</div>';
+    } else {
+      wrap.innerHTML =
+        '<div class="table-scroll">' +
+          '<table class="data-table sticky-first-col">' +
+            '<thead>' + thead + '</thead>' +
+            '<tbody>' + tbody + newRow + '</tbody>' +
+            footer +
+          '</table>' +
+        '</div>';
+    }
+
+    wrap.querySelectorAll('.sort-toggle-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.dataset.sortKey;
+        if (sortState.key === key) {
+          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.key = key;
+          sortState.dir = 'asc';
+        }
+        render();
+      });
+    });
+
+    wrap.querySelectorAll('.score-input').forEach(function (input) {
+      var committed = false;
+
+      function commit() {
+        if (committed) return Promise.resolve();
+        committed = true;
+        var value = input.value === '' ? null : Number(input.value);
+        if (value !== null) {
+          var max = Number(input.max);
+          value = Math.max(0, Math.min(max, value));
+        }
+        return Admissions.setScore(input.dataset.examId, input.dataset.candidateId, value);
+      }
+
+      input.addEventListener('change', async function () {
+        if (committed) return;
+        await commit();
+        render();
+      });
+
+      input.addEventListener('keydown', async function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var examId = input.dataset.examId;
+        var idx = candidateIdOrder.indexOf(input.dataset.candidateId);
+        var nextCandidateId = (idx !== -1 && idx < candidateIdOrder.length - 1) ? candidateIdOrder[idx + 1] : null;
+
+        await commit();
+        await render();
+
+        if (nextCandidateId) {
+          var nextInput = wrap.querySelector('.score-input[data-exam-id="' + examId + '"][data-candidate-id="' + nextCandidateId + '"]');
+          if (nextInput) {
+            nextInput.focus();
+            nextInput.select();
+          }
+        }
+      });
+    });
+
+    wrap.querySelectorAll('.max-score-input').forEach(function (input) {
+      if (input.id === 'new-exam-maxscore-input') return;
+      input.addEventListener('change', async function () {
+        var value = Number(input.value) || 0;
+        await Admissions.setExamMaxScore(input.dataset.examId, value);
+        render();
+      });
+    });
+
+    wrap.querySelectorAll('.exam-name-input').forEach(function (input) {
+      if (input.id === 'new-exam-name-input' || input.id === 'new-candidate-name-input') return;
+      input.addEventListener('change', function () {
+        Admissions.setExamName(input.dataset.examId, input.value.trim());
+      });
+    });
+
+    wrap.querySelectorAll('.exam-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!confirm('이 시험 열을 삭제할까요? 입력된 점수도 함께 삭제됩니다.')) return;
+        await Admissions.removeExam(btn.dataset.examId);
+        render();
+      });
+    });
+
+    wrap.querySelectorAll('.candidate-date-input').forEach(function (input) {
+      input.addEventListener('change', async function () {
+        await Admissions.setCandidateDate(input.dataset.candidateId, input.value);
+        render();
+      });
+    });
+
+    wrap.querySelectorAll('.candidate-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!confirm('이 학생 기록을 삭제할까요?')) return;
+        await Admissions.removeCandidate(btn.dataset.candidateId);
+        render();
+      });
+    });
+
+    var newNameInput = document.getElementById('new-exam-name-input');
+    var newMaxScoreInput = document.getElementById('new-exam-maxscore-input');
+    var addingExam = false;
+    async function commitNewExam() {
+      if (addingExam || !newNameInput.value.trim()) return;
+      addingExam = true;
+      var maxScore = Number(newMaxScoreInput.value) || 100;
+      var result = await Admissions.addExam(newNameInput.value.trim(), maxScore);
+      if (!result.ok) {
+        alert(result.message);
+        addingExam = false;
+        return;
+      }
+      render();
+    }
+    newNameInput.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      commitNewExam();
+    });
+    newMaxScoreInput.addEventListener('change', commitNewExam);
+
+    var newCandidateInput = document.getElementById('new-candidate-name-input');
+    var addingCandidate = false;
+    async function commitNewCandidate() {
+      if (addingCandidate || !newCandidateInput.value.trim()) return;
+      addingCandidate = true;
+      var result = await Admissions.addCandidate(newCandidateInput.value.trim());
+      if (!result.ok) {
+        alert(result.message);
+        addingCandidate = false;
+        return;
+      }
+      render();
+    }
+    newCandidateInput.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      commitNewCandidate();
+    });
+  }
+
+  window.__authReady.then(function () {
+    document.body.style.visibility = 'visible';
+    render();
+  });
+</script>
+</body>
+</html>

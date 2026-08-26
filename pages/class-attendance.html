@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=15"></script>
+<script src="../js/auth.js?v=17"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'class';
@@ -33,7 +33,7 @@
 
   <div class="page-header">
     <h1 class="heading-lg" id="page-title">출결 관리</h1>
-    <p class="body-md placeholder-desc">날짜 칸에 날짜를 입력하면 새 열이 생깁니다. 각 칸에서 출석·지각·결석·기타 중 하나를 선택하세요. "기타"를 선택하면 내용을 직접 입력할 수 있습니다. "일괄 출석"은 그 날짜의 전원을 출석으로 채웁니다.</p>
+    <p class="body-md placeholder-desc">날짜 칸에 날짜를 입력하면 새 열이 생깁니다. 각 칸에서 출석·결석·지각·조퇴·기타 중 하나를 선택하세요. 결석·지각·조퇴·기타는 옆 칸에 내용을 직접 입력할 수 있습니다. "일괄 출석"은 그 날짜의 전원을 출석으로 채웁니다.</p>
   </div>
 
   <div class="record-table-wrap" id="record-table-wrap">
@@ -43,9 +43,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=15"></script>
-<script src="../js/students.js?v=15"></script>
-<script src="../js/classes.js?v=15"></script>
+<script src="../js/layout.js?v=17"></script>
+<script src="../js/students.js?v=17"></script>
+<script src="../js/classes.js?v=17"></script>
 <script>
   var classId = new URLSearchParams(location.search).get('id');
   var wrap = document.getElementById('record-table-wrap');
@@ -67,22 +67,27 @@
     return div.innerHTML;
   }
 
-  var STATUS_KEY = { '': 'empty', '출석': 'present', '지각': 'late', '결석': 'absent', '기타': 'other' };
+  var STATUS_KEY = { '': 'empty', '출석': 'present', '결석': 'absent', '지각': 'late', '조퇴': 'early', '기타': 'other' };
+  var NOTE_STATUSES = ['결석', '지각', '조퇴', '기타'];
 
   function parseAttendanceValue(value) {
     if (!value) return { status: '', note: '' };
-    if (value === '출석' || value === '지각' || value === '결석') return { status: value, note: '' };
-    if (value.indexOf('기타') === 0) {
-      return { status: '기타', note: value.slice(2).replace(/^[:：]\s*/, '') };
+    if (value === '출석') return { status: '출석', note: '' };
+    for (var i = 0; i < NOTE_STATUSES.length; i++) {
+      var s = NOTE_STATUSES[i];
+      if (value === s) return { status: s, note: '' };
+      if (value.indexOf(s) === 0) {
+        return { status: s, note: value.slice(s.length).replace(/^[:：]\s*/, '') };
+      }
     }
     return { status: '기타', note: value };
   }
 
   function buildAttendanceValue(status, note) {
     if (!status) return '';
-    if (status !== '기타') return status;
+    if (status === '출석') return '출석';
     var trimmed = (note || '').trim();
-    return trimmed ? ('기타: ' + trimmed) : '기타';
+    return trimmed ? (status + ': ' + trimmed) : status;
   }
 
   async function render() {
@@ -133,17 +138,20 @@
         var value = (attendance[d] && attendance[d][s.id]) || '';
         var parsed = parseAttendanceValue(value);
         var statusKey = STATUS_KEY[parsed.status];
-        var showNote = parsed.status === '기타';
+        var showNote = NOTE_STATUSES.indexOf(parsed.status) !== -1;
         return (
           '<td class="record-cell attendance-cell status-' + statusKey + '">' +
-            '<select class="attendance-select" data-date="' + d + '" data-student-id="' + s.id + '">' +
-              '<option value=""' + (parsed.status === '' ? ' selected' : '') + '>-</option>' +
-              '<option value="출석"' + (parsed.status === '출석' ? ' selected' : '') + '>출석</option>' +
-              '<option value="지각"' + (parsed.status === '지각' ? ' selected' : '') + '>지각</option>' +
-              '<option value="결석"' + (parsed.status === '결석' ? ' selected' : '') + '>결석</option>' +
-              '<option value="기타"' + (parsed.status === '기타' ? ' selected' : '') + '>기타</option>' +
-            '</select>' +
-            '<input type="text" class="attendance-note-input"' + (showNote ? '' : ' hidden') + ' placeholder="내용 입력" data-date="' + d + '" data-student-id="' + s.id + '" value="' + escapeHtml(parsed.note) + '">' +
+            '<div class="attendance-cell-inner">' +
+              '<select class="attendance-select" data-date="' + d + '" data-student-id="' + s.id + '">' +
+                '<option value=""' + (parsed.status === '' ? ' selected' : '') + '>-</option>' +
+                '<option value="출석"' + (parsed.status === '출석' ? ' selected' : '') + '>출석</option>' +
+                '<option value="결석"' + (parsed.status === '결석' ? ' selected' : '') + '>결석</option>' +
+                '<option value="지각"' + (parsed.status === '지각' ? ' selected' : '') + '>지각</option>' +
+                '<option value="조퇴"' + (parsed.status === '조퇴' ? ' selected' : '') + '>조퇴</option>' +
+                '<option value="기타"' + (parsed.status === '기타' ? ' selected' : '') + '>기타</option>' +
+              '</select>' +
+              '<input type="text" class="attendance-note-input"' + (showNote ? '' : ' hidden') + ' placeholder="내용 입력" data-date="' + d + '" data-student-id="' + s.id + '" value="' + escapeHtml(parsed.note) + '">' +
+            '</div>' +
           '</td>'
         );
       }).join('');
@@ -178,9 +186,9 @@
 
         td.className = 'record-cell attendance-cell status-' + STATUS_KEY[status];
 
-        if (status === '기타') {
+        if (NOTE_STATUSES.indexOf(status) !== -1) {
           noteInput.hidden = false;
-          Classes.setAttendance(classId, date, studentId, buildAttendanceValue('기타', noteInput.value));
+          Classes.setAttendance(classId, date, studentId, buildAttendanceValue(status, noteInput.value));
           setTimeout(function () {
             noteInput.focus();
             noteInput.select();
@@ -196,7 +204,8 @@
 
     wrap.querySelectorAll('.attendance-note-input').forEach(function (input) {
       function commit() {
-        return Classes.setAttendance(classId, input.dataset.date, input.dataset.studentId, buildAttendanceValue('기타', input.value));
+        var select = input.closest('td').querySelector('.attendance-select');
+        return Classes.setAttendance(classId, input.dataset.date, input.dataset.studentId, buildAttendanceValue(select.value, input.value));
       }
 
       input.addEventListener('change', commit);

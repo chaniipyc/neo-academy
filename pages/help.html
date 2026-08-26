@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=15"></script>
+<script src="../js/auth.js?v=17"></script>
 <script>
   const SITE_ROOT = '../';
 </script>
@@ -34,7 +34,8 @@
       <a href="#class" class="help-sidebar-link">5. 반별 관리</a>
       <a href="#attendance" class="help-sidebar-link">6. 출결 관리</a>
       <a href="#test" class="help-sidebar-link">7. 테스트(시험) 관리</a>
-      <a href="#trouble" class="help-sidebar-link">8. 문제가 생겼을 때</a>
+      <a href="#admission" class="help-sidebar-link">8. 입반</a>
+      <a href="#trouble" class="help-sidebar-link">9. 문제가 생겼을 때</a>
     </nav>
 
     <div class="help-content">
@@ -52,8 +53,8 @@
               로그인하면 화면 위쪽에 아래 3개 메뉴가 보입니다. 이름을 누르면 바로 그 화면으로 이동합니다.
               <div class="help-menu-chips">
                 <span class="help-menu-chip">학생 정보</span>
-                <span class="help-menu-chip">상담</span>
                 <span class="help-menu-chip">반별 관리</span>
+                <span class="help-menu-chip">입반</span>
               </div>
             </div>
           </li>
@@ -222,14 +223,15 @@
         <p class="body-md">각 반 카드의 "출결관리" 버튼을 누르면 날짜별로 출결을 기록하는 표가 나옵니다.</p>
         <ul class="help-color-legend">
           <li><span class="legend-dot legend-present"></span>출석</li>
-          <li><span class="legend-dot legend-late"></span>지각</li>
           <li><span class="legend-dot legend-absent"></span>결석</li>
+          <li><span class="legend-dot legend-late"></span>지각</li>
+          <li><span class="legend-dot legend-early"></span>조퇴</li>
           <li><span class="legend-dot legend-other"></span>기타</li>
         </ul>
         <ul class="help-list body-md">
           <li>표 맨 오른쪽 빈 칸에 날짜를 입력하면 그 날짜의 새 열이 만들어집니다.</li>
-          <li>학생별 칸에서 위 네 가지 중 하나를 선택하세요. 상태에 따라 칸 색이 바뀌어 한눈에 확인할 수 있습니다.</li>
-          <li>"기타"를 선택하면 바로 아래에 내용을 입력하는 칸이 나타납니다 (예: 조퇴, 병결 등). 입력 후 Enter를 누르면 바로 아래 학생 칸으로 이동합니다.</li>
+          <li>학생별 칸에서 위 다섯 가지 중 하나를 선택하세요. 상태에 따라 칸 색이 바뀌어 한눈에 확인할 수 있습니다.</li>
+          <li>"결석"·"지각"·"조퇴"·"기타"를 선택하면 옆 칸에 내용을 입력할 수 있습니다(예: 사유, 시간 등). 입력 후 Enter를 누르면 바로 아래 학생 칸으로 이동합니다.</li>
           <li>그 날짜 열의 <strong>"일괄 출석"</strong>을 누르면 그 반 전체 학생이 한 번에 "출석"으로 채워집니다. 이후 예외인 학생만 따로 고치면 됩니다.</li>
           <li>날짜가 더 이상 필요 없으면 그 열의 "삭제"를 누르면 됩니다.</li>
         </ul>
@@ -249,9 +251,25 @@
         </ul>
       </section>
 
-      <section class="help-section" id="trouble">
+      <section class="help-section" id="admission">
         <div class="help-section-head">
           <span class="help-section-num">08</span>
+          <h2 class="heading-md">입반</h2>
+        </div>
+        <p class="body-md">입반 테스트를 보러 온 학생의 이름·날짜·시험별 점수를 표로 관리하는 화면입니다.</p>
+        <ul class="help-list body-md">
+          <li>표 맨 아래 빈 칸에 이름을 입력하고 Enter(또는 다른 곳 클릭)를 누르면 새 학생 줄이 만들어집니다.</li>
+          <li>날짜 칸을 눌러 그 학생이 테스트를 본 날짜를 입력하세요.</li>
+          <li>표 맨 오른쪽 빈 칸에 시험명과 만점을 입력하면 새 시험 열이 만들어집니다. 시험명·만점은 나중에도 다시 고칠 수 있습니다.</li>
+          <li>점수 칸에 점수를 입력하세요 (0점~만점 범위를 벗어나면 자동으로 조정됩니다). 반별 관리의 테스트 화면과 마찬가지로 평균보다 낮은 점수는 <strong>연한 빨간색</strong>, 가장 높은 점수는 <strong>연한 파란색</strong>으로 표시됩니다.</li>
+          <li>"이름"·"날짜"·각 시험명 옆의 <strong>▲▼</strong> 화살표를 누르면 그 기준으로 정렬됩니다(이름은 가나다순, 날짜는 날짜순, 시험은 점수순). 다시 누르면 오름차순↔내림차순이 바뀝니다.</li>
+          <li>더 이상 필요 없는 학생이나 시험은 각각의 "삭제"를 누르면 됩니다.</li>
+        </ul>
+      </section>
+
+      <section class="help-section" id="trouble">
+        <div class="help-section-head">
+          <span class="help-section-num">09</span>
           <h2 class="heading-md">문제가 생겼을 때</h2>
         </div>
         <p class="body-md">화면이 이상하거나, 저장이 안 되거나, 잘 모르는 부분이 있으면 관리자(원장님)에게 문의해주세요.</p>
@@ -263,7 +281,7 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=15"></script>
+<script src="../js/layout.js?v=17"></script>
 <script>
   var sidebarLinks = Array.prototype.slice.call(document.querySelectorAll('.help-sidebar-link'));
   var sections = Array.prototype.slice.call(document.querySelectorAll('.help-section'));

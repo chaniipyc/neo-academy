@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=15"></script>
+<script src="../js/auth.js?v=17"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -191,9 +191,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=15"></script>
-<script src="../js/students.js?v=15"></script>
-<script src="../js/classes.js?v=15"></script>
+<script src="../js/layout.js?v=17"></script>
+<script src="../js/students.js?v=17"></script>
+<script src="../js/classes.js?v=17"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -454,8 +454,10 @@
   });
 
   bulkDeleteBtn.addEventListener('click', async function () {
-    var fetched = await Promise.all(Array.from(selectedIds).map(function (id) { return Students.getById(id); }));
-    var students = fetched.filter(Boolean);
+    // 선택된 학생 수만큼 개별 조회 요청을 날리는 대신 전체를 한 번에 불러와 걸러낸다
+    // (개별 요청 중 하나만 실패해도 Promise.all 전체가 실패해 화면이 멈춘 것처럼 보인다).
+    var allStudents = await Students.getAll();
+    var students = allStudents.filter(function (s) { return selectedIds.has(s.id); });
 
     if (students.length === 0) return;
 
@@ -475,7 +477,7 @@
         return Classes.removeStudentsFromClass(cls.id, toRemove);
       });
     await Promise.all(classOps);
-    await Promise.all(students.map(function (s) { return Students.remove(s.id); }));
+    await Students.removeMany(students.map(function (s) { return s.id; }));
     selectedIds.clear();
     updateBulkDeleteBtn();
     renderTable();
