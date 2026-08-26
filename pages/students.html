@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=17"></script>
+<script src="../js/auth.js?v=18"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -189,11 +189,31 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="counsel-modal-overlay" hidden>
+  <div class="modal-card modal-card-wide">
+    <h2 class="heading-md" id="counsel-modal-title">상담 기록 추가</h2>
+    <form id="counsel-form">
+      <label class="auth-field">
+        <span class="caption">상담 날짜</span>
+        <input type="date" name="date" class="text-input" required>
+      </label>
+      <label class="auth-field">
+        <span class="caption">상담 내용</span>
+        <textarea name="content" class="text-input counsel-content-input" required></textarea>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="counsel-modal-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=17"></script>
-<script src="../js/students.js?v=17"></script>
-<script src="../js/classes.js?v=17"></script>
+<script src="../js/layout.js?v=18"></script>
+<script src="../js/students.js?v=18"></script>
+<script src="../js/classes.js?v=18"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -316,6 +336,7 @@
           '<td>' + renderClassLinks(s.currentClasses, classByName) + '</td>' +
           '<td class="row-actions">' +
             '<a class="row-action view" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">자세히 보기</a>' +
+            '<button type="button" class="row-action counsel" data-id="' + s.id + '">상담</button>' +
             '<button type="button" class="row-action edit" data-id="' + s.id + '">수정</button>' +
             '<button type="button" class="row-action delete" data-id="' + s.id + '">삭제</button>' +
           '</td>' +
@@ -405,6 +426,43 @@
     renderTable();
   });
 
+  // ---- 상담 기록 추가 ----
+  var counselOverlay = document.getElementById('counsel-modal-overlay');
+  var counselForm = document.getElementById('counsel-form');
+  var counselModalTitle = document.getElementById('counsel-modal-title');
+  var counselCancelBtn = document.getElementById('counsel-modal-cancel');
+  var counselStudentId = null;
+
+  function openCounselModal(id) {
+    counselStudentId = id;
+    counselForm.reset();
+    counselModalTitle.textContent = '상담 기록 추가';
+    counselOverlay.hidden = false;
+    counselForm.date.focus();
+  }
+
+  function closeCounselModal() {
+    counselOverlay.hidden = true;
+    counselStudentId = null;
+  }
+
+  counselCancelBtn.addEventListener('click', closeCounselModal);
+  counselOverlay.addEventListener('click', function (e) {
+    if (e.target === counselOverlay) closeCounselModal();
+  });
+
+  counselForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var date = counselForm.date.value;
+    var content = counselForm.content.value.trim();
+    if (!content) {
+      counselForm.content.focus();
+      return;
+    }
+    await Students.addCounselRecord(counselStudentId, date, content);
+    closeCounselModal();
+  });
+
   async function removeStudentFromAllClasses(studentId) {
     var classes = await Classes.getAll();
     var ops = classes
@@ -414,6 +472,11 @@
   }
 
   tbody.addEventListener('click', async function (e) {
+    var counselBtn = e.target.closest('.row-action.counsel');
+    if (counselBtn) {
+      openCounselModal(counselBtn.dataset.id);
+      return;
+    }
     var editBtn = e.target.closest('.row-action.edit');
     if (editBtn) {
       openModal(await Students.getById(editBtn.dataset.id));

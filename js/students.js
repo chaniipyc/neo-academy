@@ -28,6 +28,7 @@
     var record = { id: genId(seed) };
     FIELD_ORDER.forEach(function (key) { record[key] = data[key] || ''; });
     record.createdAt = new Date().toISOString();
+    record.counselRecords = [];
     return record;
   }
 
@@ -68,10 +69,48 @@
   function update(id, data) {
     return db.collection(COLLECTION).doc(id).get().then(function (doc) {
       if (!doc.exists) return null;
+      var existing = doc.data();
       var record = { id: id };
       FIELD_ORDER.forEach(function (key) { record[key] = data[key] || ''; });
-      record.createdAt = doc.data().createdAt;
+      record.createdAt = existing.createdAt;
+      // 이 함수는 학생 정보 수정 폼이 전달한 필드로 문서를 통째로 다시 쓰는 방식이라,
+      // 폼에 없는 상담 기록을 여기서 챙겨두지 않으면 이름/전화번호 등만 고쳐도
+      // 상담 내역이 통째로 사라진다.
+      record.counselRecords = existing.counselRecords || [];
       return db.collection(COLLECTION).doc(id).set(record).then(function () { return record; });
+    });
+  }
+
+  // 같은 학생 문서를 상담 기록 추가/삭제 시 안전하게 고치기 위한 트랜잭션 헬퍼.
+  function updateStudentDoc(id, mutator) {
+    var ref = db.collection(COLLECTION).doc(id);
+    return db.runTransaction(function (transaction) {
+      return transaction.get(ref).then(function (doc) {
+        if (!doc.exists) return null;
+        var record = doc.data();
+        var result = mutator(record);
+        transaction.set(ref, record);
+        return result !== undefined ? result : record;
+      });
+    });
+  }
+
+  function genCounselId() {
+    return 'cs_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function addCounselRecord(id, date, content) {
+    var created = null;
+    return updateStudentDoc(id, function (record) {
+      if (!record.counselRecords) record.counselRecords = [];
+      created = { id: genCounselId(), date: date || '', content: content || '', createdAt: new Date().toISOString() };
+      record.counselRecords.push(created);
+    }).then(function () { return created; });
+  }
+
+  function removeCounselRecord(id, counselId) {
+    return updateStudentDoc(id, function (record) {
+      record.counselRecords = (record.counselRecords || []).filter(function (r) { return r.id !== counselId; });
     });
   }
 
@@ -131,6 +170,8 @@
     update: update,
     remove: remove,
     removeMany: removeMany,
+    addCounselRecord: addCounselRecord,
+    removeCounselRecord: removeCounselRecord,
     getById: getById,
     search: search,
     splitClasses: splitClasses,

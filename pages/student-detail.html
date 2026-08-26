@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=17"></script>
+<script src="../js/auth.js?v=18"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -116,9 +116,9 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=17"></script>
-<script src="../js/students.js?v=17"></script>
-<script src="../js/classes.js?v=17"></script>
+<script src="../js/layout.js?v=18"></script>
+<script src="../js/students.js?v=18"></script>
+<script src="../js/classes.js?v=18"></script>
 <script>
   var studentId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -224,6 +224,43 @@
     );
   }
 
+  var counselExpanded = false;
+
+  function counselField(records) {
+    var sorted = (records || []).slice().sort(function (a, b) {
+      return (b.date || '').localeCompare(a.date || '');
+    });
+
+    var body = '';
+    if (!counselExpanded) {
+      body = '';
+    } else if (sorted.length === 0) {
+      body = '<p class="body-md counsel-empty">상담 기록이 없습니다.</p>';
+    } else {
+      body = '<div class="counsel-record-list">' + sorted.map(function (r) {
+        return (
+          '<div class="counsel-record">' +
+            '<div class="counsel-record-head">' +
+              '<span class="counsel-record-date">' + escapeHtml(r.date || '날짜 미입력') + '</span>' +
+              '<button type="button" class="icon-delete-btn counsel-record-delete-btn" data-counsel-id="' + r.id + '" aria-label="삭제" title="삭제">×</button>' +
+            '</div>' +
+            '<p class="counsel-record-content">' + escapeHtml(r.content) + '</p>' +
+          '</div>'
+        );
+      }).join('') + '</div>';
+    }
+
+    return (
+      '<div class="detail-item full-width">' +
+        '<div class="counsel-field-head">' +
+          '<span class="detail-label">상담 내역' + (records && records.length ? ' (' + records.length + ')' : '') + '</span>' +
+          '<button type="button" class="btn-secondary btn-tiny counsel-toggle-btn">' + (counselExpanded ? '접어서 보기' : '펼쳐서 보기') + '</button>' +
+        '</div>' +
+        body +
+      '</div>'
+    );
+  }
+
   async function renderStudent(s) {
     breadcrumbName.textContent = '/ ' + s.name;
     var allClasses = await Classes.getAll();
@@ -246,6 +283,7 @@
         field('주소', s.address, true) +
         classField('현재 수강 수업', s.currentClasses, classByName, true) +
         field('수강 수업 이력', s.classHistory, true) +
+        counselField(s.counselRecords) +
         field('특이 사항', s.notes, true) +
       '</div>' +
       '<div class="detail-actions">' +
@@ -262,6 +300,22 @@
         await Students.remove(s.id);
         location.href = './students.html';
       }
+    });
+
+    var counselToggleBtn = detailCard.querySelector('.counsel-toggle-btn');
+    if (counselToggleBtn) {
+      counselToggleBtn.addEventListener('click', function () {
+        counselExpanded = !counselExpanded;
+        renderStudent(s);
+      });
+    }
+    detailCard.querySelectorAll('.counsel-record-delete-btn').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        if (!confirm('이 상담 기록을 삭제할까요?')) return;
+        await Students.removeCounselRecord(s.id, btn.dataset.counselId);
+        var updated = await Students.getById(s.id);
+        renderStudent(updated);
+      });
     });
   }
 

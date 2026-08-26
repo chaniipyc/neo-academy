@@ -515,6 +515,10 @@ textarea.text-input {
   line-height: 1.5;
 }
 
+textarea.counsel-content-input {
+  min-height: 380px;
+}
+
 /* ---------- Auth pages (login) ---------- */
 .auth-main {
   flex: 1;
@@ -1343,6 +1347,53 @@ td.record-cell.attendance-cell {
 
 .detail-empty {
   color: var(--color-ink-mute);
+}
+
+.counsel-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.counsel-empty {
+  color: var(--color-ink-mute);
+  margin-top: var(--space-sm);
+}
+
+.counsel-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.counsel-record {
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  background: var(--color-canvas-page);
+}
+
+.counsel-record-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.counsel-record-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.counsel-record-content {
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .detail-actions {
