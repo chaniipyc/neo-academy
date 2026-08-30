@@ -12,7 +12,8 @@
       "NEO_logo.png",
       "dev-server.py",
       "firestore.rules",
-      "정리.txt"
+      "정리.txt",
+      "brand-assets/**"
     ]
   },
   "firestore": {

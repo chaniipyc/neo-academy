@@ -55,7 +55,7 @@
         '<div class="header-top">' +
           '<div class="header-side"><a class="auth-link" href="' + root + 'pages/help.html">도움말</a></div>' +
           '<a class="logo-link" href="' + root + 'index.html">' +
-            '<img class="logo-img" src="' + root + 'assets/NEO_logo.png" alt="NEO ACADEMY">' +
+            '<img class="logo-img" src="' + root + 'assets/NEO_logo.svg" alt="NEO ACADEMY">' +
           '</a>' +
           '<div class="header-side auth-bar">' + renderAuthBar() + '</div>' +
         '</div>' +
