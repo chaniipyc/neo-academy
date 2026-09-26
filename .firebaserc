@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "neo-academy-cf615"
-  }
+  },
+  "targets": {
+    "neo-academy-cf615": {
+      "hosting": {
+        "main": [
+          "neo-academy-cf615"
+        ],
+        "marketing": [
+          "neo-academy-site"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

@@ -1,21 +1,35 @@
 {
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      ".git/**",
-      ".firebase/**",
-      "**/node_modules/**",
-      "DESIGN-slack.md",
-      "DEVLOG.md",
-      "NEO_logo.png",
-      "dev-server.py",
-      "firestore.rules",
-      "정리.txt",
-      "brand-assets/**"
-    ]
-  },
+  "hosting": [
+    {
+      "target": "main",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        ".git/**",
+        ".firebase/**",
+        "**/node_modules/**",
+        "DESIGN-slack.md",
+        "DESIGN-airtable.md",
+        "DEVLOG.md",
+        "NEO_logo.png",
+        "dev-server.py",
+        "firestore.rules",
+        "정리.txt",
+        "brand-assets/**",
+        "marketing-site/**",
+        "backups/**"
+      ]
+    },
+    {
+      "target": "marketing",
+      "public": "marketing-site",
+      "ignore": [
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules"
   }
