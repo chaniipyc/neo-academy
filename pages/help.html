@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=19"></script>
+<script src="../js/auth.js?v=20"></script>
 <script>
   const SITE_ROOT = '../';
 </script>
@@ -99,6 +99,7 @@
           <li><strong>자세히 보기</strong> — 그 학생의 모든 정보(등록일, 구분, 담임, 수업일, 수강료, 연락처, 주소, 현재 수강 강좌 등)를 한 화면에서 볼 수 있습니다.</li>
           <li><strong>수정 / 삭제</strong> — 표에서 바로, 또는 자세히 보기 화면에서 학생 한 명씩 처리할 수 있습니다.</li>
           <li><strong>선택 삭제</strong> — 표 왼쪽 체크박스로 여러 학생을 한꺼번에 고른 뒤 눌러 한 번에 지울 수 있습니다. 실수를 막기 위해 삭제 전 대상 인원과 이름을 보여주는 확인 창이 한 번 뜹니다.</li>
+          <li><strong>삭제된 학생</strong> — 삭제한 학생은 바로 사라지지 않고 "삭제된 학생" 목록으로 옮겨집니다. 여기서 <strong>복원</strong>을 누르면 상담 기록·출결·시험 기록과 반 배정까지 그대로 돌아오고, <strong>영구 삭제</strong>를 누르면 완전히 지워집니다(되돌릴 수 없음).</li>
           <li><strong>검색</strong> — 검색창에 검색어를 입력하기 전에, 이름·학교·학년·현재 수강 강좌 중 검색할 항목을 체크하세요. 아무것도 체크하지 않으면 네 항목 전체에서 검색됩니다.</li>
         </ul>
         <div class="help-note">
@@ -281,7 +282,7 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=19"></script>
+<script src="../js/layout.js?v=20"></script>
 <script>
   var sidebarLinks = Array.prototype.slice.call(document.querySelectorAll('.help-sidebar-link'));
   var sections = Array.prototype.slice.call(document.querySelectorAll('.help-section'));

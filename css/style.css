@@ -851,6 +851,17 @@ textarea.counsel-content-input {
   color: var(--color-error);
 }
 
+.deleted-notice {
+  display: inline-block;
+  margin-top: var(--space-sm);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .data-table.roster-table {
   min-width: 0;
 }

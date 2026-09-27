@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=19"></script>
+<script src="../js/auth.js?v=20"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -116,9 +116,10 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=19"></script>
-<script src="../js/students.js?v=19"></script>
-<script src="../js/classes.js?v=19"></script>
+<script src="../js/layout.js?v=20"></script>
+<script src="../js/students.js?v=20"></script>
+<script src="../js/classes.js?v=20"></script>
+<script src="../js/trash.js?v=20"></script>
 <script>
   var studentId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -185,14 +186,6 @@
       var cls = classByName[n];
       if (cls) ops.push(Classes.addStudentToClass(cls.id, sid));
     });
-    await Promise.all(ops);
-  }
-
-  async function removeStudentFromAllClasses(sid) {
-    var classes = await Classes.getAll();
-    var ops = classes
-      .filter(function (cls) { return cls.studentIds.indexOf(sid) !== -1; })
-      .map(function (cls) { return Classes.removeStudentFromClass(cls.id, sid); });
     await Promise.all(ops);
   }
 
@@ -267,10 +260,13 @@
     var classByName = {};
     allClasses.forEach(function (c) { classByName[c.name] = c; });
 
+    var isDeleted = !!s.deletedAt;
+
     detailCard.innerHTML =
       '<div class="detail-header">' +
         '<h1 class="heading-lg">' + escapeHtml(s.name) + '</h1>' +
         '<p class="caption">' + escapeHtml(s.school || '학교 미입력') + ' · ' + escapeHtml(s.grade || '학년 미입력') + '</p>' +
+        (isDeleted ? '<p class="deleted-notice">삭제된 학생입니다 · ' + new Date(s.deletedAt).toLocaleDateString('ko-KR') + ' 삭제</p>' : '') +
       '</div>' +
       '<div class="detail-grid">' +
         field('등록일', s.registeredAt) +
@@ -287,20 +283,29 @@
         field('특이 사항', s.notes, true) +
       '</div>' +
       '<div class="detail-actions">' +
-        '<button type="button" class="btn-secondary" id="detail-edit-btn">수정</button>' +
-        '<button type="button" class="btn-danger" id="detail-delete-btn">삭제</button>' +
+        (isDeleted
+          ? '<button type="button" class="btn-primary" id="detail-restore-btn">복원</button>'
+          : '<button type="button" class="btn-secondary" id="detail-edit-btn">수정</button>' +
+            '<button type="button" class="btn-danger" id="detail-delete-btn">삭제</button>') +
       '</div>';
 
-    document.getElementById('detail-edit-btn').addEventListener('click', function () {
-      openModal(s);
-    });
-    document.getElementById('detail-delete-btn').addEventListener('click', async function () {
-      if (confirm(s.name + ' 학생 정보를 삭제할까요?')) {
-        await removeStudentFromAllClasses(s.id);
-        await Students.remove(s.id);
-        location.href = './students.html';
-      }
-    });
+    if (isDeleted) {
+      document.getElementById('detail-restore-btn').addEventListener('click', async function () {
+        if (!confirm(s.name + ' 학생을 복원할까요?\n삭제 전에 있던 반 명단에도 다시 들어갑니다.')) return;
+        await Trash.restore(s);
+        renderStudent(await Students.getById(s.id));
+      });
+    } else {
+      document.getElementById('detail-edit-btn').addEventListener('click', function () {
+        openModal(s);
+      });
+      document.getElementById('detail-delete-btn').addEventListener('click', async function () {
+        if (confirm(s.name + ' 학생을 삭제할까요?\n"삭제된 학생" 목록으로 옮겨지며, 언제든 복원할 수 있습니다.')) {
+          await Trash.moveToTrash([s.id]);
+          location.href = './students.html';
+        }
+      });
+    }
 
     var counselToggleBtn = detailCard.querySelector('.counsel-toggle-btn');
     if (counselToggleBtn) {

@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="../js/firebase-init.js"></script>
-<script src="../js/auth.js?v=19"></script>
+<script src="../js/auth.js?v=20"></script>
 <script>
   const SITE_ROOT = '../';
   const ACTIVE_CATEGORY = 'students';
@@ -23,8 +23,8 @@
 
 <main class="page-main">
   <div class="page-header">
-    <h1 class="heading-lg">학생 정보</h1>
-    <p class="body-md placeholder-desc">학생 정보를 등록, 수정, 검색할 수 있습니다. 자세한 정보는 "자세히 보기"에서 확인하세요.</p>
+    <h1 class="heading-lg" id="page-title">학생 정보</h1>
+    <p class="body-md placeholder-desc" id="page-desc">학생 정보를 등록, 수정, 검색할 수 있습니다. 자세한 정보는 "자세히 보기"에서 확인하세요.</p>
   </div>
 
   <div class="toolbar">
@@ -49,12 +49,29 @@
         </label>
       </div>
     </div>
-    <button type="button" class="btn-danger" id="bulk-delete-btn" disabled>선택 삭제 (0)</button>
-    <button type="button" class="btn-secondary" id="paste-student-btn">엑셀에서 붙여넣기</button>
-    <button type="button" class="btn-primary" id="add-student-btn">+ 학생 추가</button>
+    <button type="button" class="btn-secondary" id="trash-toggle-btn">삭제된 학생</button>
+    <button type="button" class="btn-danger active-only" id="bulk-delete-btn" disabled>선택 삭제 (0)</button>
+    <button type="button" class="btn-secondary active-only" id="paste-student-btn">엑셀에서 붙여넣기</button>
+    <button type="button" class="btn-primary active-only" id="add-student-btn">+ 학생 추가</button>
   </div>
 
-  <div class="table-scroll">
+  <div class="table-scroll" id="trash-table-wrap" hidden>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>학교</th>
+          <th>학년</th>
+          <th>삭제 전 수강 수업</th>
+          <th>삭제일</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="trash-table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="table-scroll" id="student-table-wrap">
     <table class="data-table">
       <thead>
         <tr>
@@ -211,9 +228,10 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=19"></script>
-<script src="../js/students.js?v=19"></script>
-<script src="../js/classes.js?v=19"></script>
+<script src="../js/layout.js?v=20"></script>
+<script src="../js/students.js?v=20"></script>
+<script src="../js/classes.js?v=20"></script>
+<script src="../js/trash.js?v=20"></script>
 <script>
   var tbody = document.getElementById('student-table-body');
   var searchInput = document.getElementById('student-search');
@@ -463,14 +481,6 @@
     closeCounselModal();
   });
 
-  async function removeStudentFromAllClasses(studentId) {
-    var classes = await Classes.getAll();
-    var ops = classes
-      .filter(function (cls) { return cls.studentIds.indexOf(studentId) !== -1; })
-      .map(function (cls) { return Classes.removeStudentFromClass(cls.id, studentId); });
-    await Promise.all(ops);
-  }
-
   tbody.addEventListener('click', async function (e) {
     var counselBtn = e.target.closest('.row-action.counsel');
     if (counselBtn) {
@@ -485,11 +495,12 @@
     var deleteBtn = e.target.closest('.row-action.delete');
     if (deleteBtn) {
       var student = await Students.getById(deleteBtn.dataset.id);
-      if (student && confirm(student.name + ' 학생 정보를 삭제할까요?')) {
-        await removeStudentFromAllClasses(student.id);
-        await Students.remove(deleteBtn.dataset.id);
+      if (student && confirm(student.name + ' 학생을 삭제할까요?\n"삭제된 학생" 목록으로 옮겨지며, 언제든 복원할 수 있습니다.')) {
+        await Trash.moveToTrash([student.id]);
         selectedIds.delete(student.id);
+        updateBulkDeleteBtn();
         renderTable();
+        refreshTrashCount();
       }
     }
   });
@@ -526,31 +537,123 @@
 
     var names = students.map(function (s) { return s.name; });
     var preview = names.slice(0, 5).join(', ') + (names.length > 5 ? ' 외 ' + (names.length - 5) + '명' : '');
-    var confirmMsg = students.length + '명의 학생 정보를 삭제할까요?\n(' + preview + ')\n이 작업은 되돌릴 수 없으며, 반 명단에서도 함께 제외됩니다.';
+    var confirmMsg = students.length + '명의 학생을 삭제할까요?\n(' + preview + ')\n반 명단에서 빠지고 "삭제된 학생" 목록으로 옮겨지며, 언제든 복원할 수 있습니다.';
     if (!confirm(confirmMsg)) return;
 
-    var deletedIdSet = {};
-    students.forEach(function (s) { deletedIdSet[s.id] = true; });
-    var allClasses = await Classes.getAll();
-    // 학생 수만큼 개별 트랜잭션을 동시에 날리는 대신, 영향받는 반마다 트랜잭션을 1번만 실행한다.
-    var classOps = allClasses
-      .filter(function (cls) { return cls.studentIds.some(function (id) { return deletedIdSet[id]; }); })
-      .map(function (cls) {
-        var toRemove = cls.studentIds.filter(function (id) { return deletedIdSet[id]; });
-        return Classes.removeStudentsFromClass(cls.id, toRemove);
-      });
-    await Promise.all(classOps);
-    await Students.removeMany(students.map(function (s) { return s.id; }));
+    await Trash.moveToTrash(students.map(function (s) { return s.id; }));
     selectedIds.clear();
     updateBulkDeleteBtn();
     renderTable();
+    refreshTrashCount();
   });
 
-  searchInput.addEventListener('input', renderTable);
+  // ---- 삭제된 학생 ----
+  var showTrash = false;
+  var trashToggleBtn = document.getElementById('trash-toggle-btn');
+  var trashWrap = document.getElementById('trash-table-wrap');
+  var studentWrap = document.getElementById('student-table-wrap');
+  var trashBody = document.getElementById('trash-table-body');
+  var pageTitle = document.getElementById('page-title');
+  var pageDesc = document.getElementById('page-desc');
+  var activeDesc = pageDesc.textContent;
+  var trashCount = 0;
+
+  function formatDate(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function updateTrashButton() {
+    trashToggleBtn.textContent = showTrash
+      ? '← 학생 정보로 돌아가기'
+      : '삭제된 학생' + (trashCount ? ' (' + trashCount + ')' : '');
+  }
+
+  async function refreshTrashCount() {
+    trashCount = (await Students.getDeleted()).length;
+    updateTrashButton();
+  }
+
+  function matchesSearch(s) {
+    var query = searchInput.value.trim().toLowerCase();
+    if (!query) return true;
+    var fields = getSelectedFields();
+    if (!fields.length) fields = ['name', 'school', 'grade', 'currentClasses'];
+    return fields.some(function (key) { return (s[key] || '').toLowerCase().indexOf(query) !== -1; });
+  }
+
+  async function renderTrash() {
+    var list = await Students.getDeleted();
+    trashCount = list.length;
+    updateTrashButton();
+    list = list.filter(matchesSearch);
+
+    if (list.length === 0) {
+      trashBody.innerHTML = '<tr><td colspan="6" class="table-empty">삭제된 학생이 없습니다.</td></tr>';
+      return;
+    }
+
+    trashBody.innerHTML = list.map(function (s) {
+      return (
+        '<tr>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+          '<td>' + escapeHtml(s.currentClasses) + '</td>' +
+          '<td>' + formatDate(s.deletedAt) + '</td>' +
+          '<td class="row-actions">' +
+            '<button type="button" class="row-action view trash-restore-btn" data-id="' + s.id + '">복원</button>' +
+            '<button type="button" class="row-action delete trash-purge-btn" data-id="' + s.id + '">영구 삭제</button>' +
+          '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  function refresh() {
+    return showTrash ? renderTrash() : renderTable();
+  }
+
+  trashToggleBtn.addEventListener('click', function () {
+    showTrash = !showTrash;
+    trashWrap.hidden = !showTrash;
+    studentWrap.hidden = showTrash;
+    document.querySelectorAll('.toolbar .active-only').forEach(function (el) { el.hidden = showTrash; });
+    pageTitle.textContent = showTrash ? '삭제된 학생' : '학생 정보';
+    pageDesc.textContent = showTrash
+      ? '삭제한 학생들이 모여 있습니다. "복원"을 누르면 원래 정보와 반 배정이 그대로 돌아오고, "영구 삭제"는 되돌릴 수 없습니다.'
+      : activeDesc;
+    updateTrashButton();
+    refresh();
+  });
+
+  trashBody.addEventListener('click', async function (e) {
+    var restoreBtn = e.target.closest('.trash-restore-btn');
+    if (restoreBtn) {
+      var list = await Students.getDeleted();
+      var s = list.filter(function (x) { return x.id === restoreBtn.dataset.id; })[0];
+      if (!s) return;
+      if (!confirm(s.name + ' 학생을 복원할까요?\n삭제 전에 있던 반 명단에도 다시 들어갑니다.')) return;
+      await Trash.restore(s);
+      renderTrash();
+      return;
+    }
+    var purgeBtn = e.target.closest('.trash-purge-btn');
+    if (purgeBtn) {
+      var all = await Students.getDeleted();
+      var target = all.filter(function (x) { return x.id === purgeBtn.dataset.id; })[0];
+      if (!target) return;
+      if (!confirm(target.name + ' 학생을 영구 삭제할까요?\n상담 기록을 포함한 모든 정보가 완전히 사라지며, 되돌릴 수 없습니다.')) return;
+      await Trash.purge([target.id]);
+      renderTrash();
+    }
+  });
+
+  searchInput.addEventListener('input', refresh);
   Array.prototype.forEach.call(filterCheckboxes, function (cb) {
     cb.addEventListener('change', function () {
       cb.closest('.filter-chip').classList.toggle('is-checked', cb.checked);
-      renderTable();
+      refresh();
     });
   });
 
@@ -647,6 +750,7 @@
   window.__authReady.then(function () {
     document.body.style.visibility = 'visible';
     renderTable();
+    refreshTrashCount();
   });
 </script>
 </body>

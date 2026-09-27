@@ -1,12 +1,46 @@
 (function (global) {
   var COLLECTION = 'students';
 
-  function getAll() {
+  function fetchAll() {
     return db.collection(COLLECTION).get().then(function (snap) {
       var list = [];
       snap.forEach(function (doc) { list.push(doc.data()); });
       return list.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
     });
+  }
+
+  // 삭제된 학생(deletedAt이 있는 문서)은 삭제된 학생 목록에서만 보이고, 나머지 모든 화면에서는 빠진다.
+  function getAll() {
+    return fetchAll().then(function (list) { return list.filter(function (s) { return !s.deletedAt; }); });
+  }
+
+  function getDeleted() {
+    return fetchAll().then(function (list) {
+      return list.filter(function (s) { return s.deletedAt; })
+        .sort(function (a, b) { return b.deletedAt.localeCompare(a.deletedAt); });
+    });
+  }
+
+  // classIdsById: { studentId: [삭제 시점에 빠진 반 id들] } — 복원할 때 그 반들로 되돌려 넣는다.
+  function markDeleted(classIdsById) {
+    var ids = Object.keys(classIdsById);
+    var now = new Date().toISOString();
+    var chunks = [];
+    for (var i = 0; i < ids.length; i += 400) chunks.push(ids.slice(i, i + 400));
+    return chunks.reduce(function (chain, chunk) {
+      return chain.then(function () {
+        var batch = db.batch();
+        chunk.forEach(function (id) {
+          batch.update(db.collection(COLLECTION).doc(id), { deletedAt: now, deletedClassIds: classIdsById[id] });
+        });
+        return batch.commit();
+      });
+    }, Promise.resolve());
+  }
+
+  function unmarkDeleted(id) {
+    var del = firebase.firestore.FieldValue.delete();
+    return db.collection(COLLECTION).doc(id).update({ deletedAt: del, deletedClassIds: del });
   }
 
   var FIELD_ORDER = [
@@ -164,6 +198,9 @@
 
   global.Students = {
     getAll: getAll,
+    getDeleted: getDeleted,
+    markDeleted: markDeleted,
+    unmarkDeleted: unmarkDeleted,
     add: add,
     addMany: addMany,
     parsePaste: parsePaste,
