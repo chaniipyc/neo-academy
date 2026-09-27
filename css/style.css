@@ -846,8 +846,19 @@ textarea.counsel-content-input {
   color: var(--color-link-blue);
 }
 
-.row-action.delete {
+.row-action.delete,
+.row-action.withdraw {
   color: var(--color-error);
+}
+
+.data-table.roster-table {
+  min-width: 0;
+}
+
+.data-table .roster-action-cell {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .row-action:hover {

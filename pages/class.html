@@ -83,6 +83,7 @@
 <script src="../js/layout.js?v=19"></script>
 <script src="../js/students.js?v=19"></script>
 <script src="../js/classes.js?v=19"></script>
+<script src="../js/withdraw.js?v=19"></script>
 <script>
   var classListEl = document.getElementById('class-list');
 
@@ -169,13 +170,14 @@
       var isExpanded = !!expandedClassIds[cls.id];
 
       var rows = students.length === 0
-        ? '<tr><td colspan="3" class="table-empty">등록된 학생이 없습니다.</td></tr>'
+        ? '<tr><td colspan="4" class="table-empty">등록된 학생이 없습니다.</td></tr>'
         : students.map(function (s) {
             return (
               '<tr>' +
                 '<td><a class="cell-link" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">' + escapeHtml(s.name) + '</a></td>' +
                 '<td>' + escapeHtml(s.school) + '</td>' +
                 '<td>' + escapeHtml(s.grade) + '</td>' +
+                '<td class="roster-action-cell"><button type="button" class="row-action withdraw class-withdraw-btn" data-class-id="' + cls.id + '" data-student-id="' + s.id + '">퇴원</button></td>' +
               '</tr>'
             );
           }).join('');
@@ -194,8 +196,8 @@
           '</div>' +
           (isExpanded ?
             '<div class="table-scroll">' +
-              '<table class="data-table">' +
-                '<thead><tr><th>이름</th><th>학교</th><th>학년</th></tr></thead>' +
+              '<table class="data-table roster-table">' +
+                '<thead><tr><th>이름</th><th>학교</th><th>학년</th><th class="roster-action-cell"></th></tr></thead>' +
                 '<tbody>' + rows + '</tbody>' +
               '</table>' +
             '</div>'
@@ -271,6 +273,18 @@
 
       await Classes.completeClass(classId);
       render();
+      return;
+    }
+
+    var withdrawBtn = e.target.closest('.class-withdraw-btn');
+    if (withdrawBtn) {
+      var wCls = await Classes.getById(withdrawBtn.dataset.classId);
+      var wStudent = await Students.getById(withdrawBtn.dataset.studentId);
+      if (!wCls || !wStudent) return;
+      var wDate = await Withdraw.ask(wStudent.name, wCls.name);
+      if (!wDate) return;
+      await Withdraw.apply(wCls, wStudent, wDate);
+      renderClasses();
       return;
     }
 

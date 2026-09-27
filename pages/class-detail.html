@@ -65,6 +65,7 @@
 <script src="../js/layout.js?v=19"></script>
 <script src="../js/students.js?v=19"></script>
 <script src="../js/classes.js?v=19"></script>
+<script src="../js/withdraw.js?v=19"></script>
 <script>
   var classId = new URLSearchParams(location.search).get('id');
   var detailCard = document.getElementById('detail-card');
@@ -106,12 +107,13 @@
     return Students.update(student.id, data);
   }
 
-  function studentRows(studentIds, studentById) {
+  function studentRows(studentIds, studentById, showWithdraw) {
     var students = studentIds.map(function (id) { return studentById[id]; }).filter(Boolean);
     students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+    var cols = showWithdraw ? 4 : 3;
 
     if (students.length === 0) {
-      return '<tr><td colspan="3" class="table-empty">등록된 학생이 없습니다.</td></tr>';
+      return '<tr><td colspan="' + cols + '" class="table-empty">등록된 학생이 없습니다.</td></tr>';
     }
 
     return students.map(function (s) {
@@ -120,6 +122,7 @@
           '<td><a class="cell-link" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">' + escapeHtml(s.name) + '</a></td>' +
           '<td>' + escapeHtml(s.school) + '</td>' +
           '<td>' + escapeHtml(s.grade) + '</td>' +
+          (showWithdraw ? '<td class="roster-action-cell"><button type="button" class="row-action withdraw detail-withdraw-btn" data-student-id="' + s.id + '">퇴원</button></td>' : '') +
         '</tr>'
       );
     }).join('');
@@ -140,9 +143,9 @@
         '<p class="caption">' + (isCompleted ? '완강 처리됨 · ' : '') + rosterIds.length + '명</p>' +
       '</div>' +
       '<div class="table-scroll">' +
-        '<table class="data-table">' +
-          '<thead><tr><th>이름</th><th>학교</th><th>학년</th></tr></thead>' +
-          '<tbody>' + studentRows(rosterIds, studentById) + '</tbody>' +
+        '<table class="data-table roster-table">' +
+          '<thead><tr><th>이름</th><th>학교</th><th>학년</th>' + (isCompleted ? '' : '<th class="roster-action-cell"></th>') + '</tr></thead>' +
+          '<tbody>' + studentRows(rosterIds, studentById, !isCompleted) + '</tbody>' +
         '</table>' +
       '</div>' +
       '<div class="detail-actions">' +
@@ -177,6 +180,16 @@
     } else {
       document.getElementById('add-student-btn').addEventListener('click', function () {
         openStudentSelect(cls.id);
+      });
+      detailCard.querySelectorAll('.detail-withdraw-btn').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          var student = studentById[btn.dataset.studentId];
+          if (!student) return;
+          var date = await Withdraw.ask(student.name, cls.name);
+          if (!date) return;
+          await Withdraw.apply(cls, student, date);
+          renderClass(await Classes.getById(cls.id));
+        });
       });
       document.getElementById('complete-btn').addEventListener('click', async function () {
         var students = cls.studentIds.map(function (id) { return studentById[id]; }).filter(Boolean);
