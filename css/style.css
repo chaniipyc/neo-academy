@@ -949,6 +949,14 @@ textarea.counsel-content-input {
   text-align: left;
   color: inherit;
   font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+.class-title-btn:hover {
+  color: var(--color-primary);
 }
 
 .class-card-actions {
@@ -1932,4 +1940,79 @@ td.record-cell.attendance-cell {
   .detail-actions .btn-danger {
     width: 100%;
   }
+}
+
+/* ---- 선생님 페이지: 과목 탭 ---- */
+.teacher-toolbar {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+
+.subject-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+}
+
+.subject-tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-ink-mute);
+  padding: 8px 22px;
+  border-radius: var(--radius-pill);
+  transition: background-color 0.15s var(--ease-standard), color 0.15s var(--ease-standard);
+}
+
+.subject-tab:hover {
+  color: var(--color-primary);
+}
+
+.subject-tab.is-active {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.subject-tab:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.subject-tab-count {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.teacher-subbar {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.teacher-subbar .teacher-search {
+  flex: 1 1 auto;
+  max-width: 360px;
+}
+
+.teacher-subbar #expand-all-btn {
+  margin-left: auto;
 }

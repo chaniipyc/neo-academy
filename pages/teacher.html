@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>선생님 | NEO ACADEMY</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>body { visibility: hidden; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="../js/firebase-init.js"></script>
+<script src="../js/auth.js?v=20"></script>
+<script>
+  const SITE_ROOT = '../';
+  const ACTIVE_CATEGORY = 'teacher';
+  window.__authReady = Auth.requireLogin(SITE_ROOT + 'login.html');
+</script>
+</head>
+<body>
+
+<div id="site-header"></div>
+
+<main class="page-main">
+  <div class="page-header">
+    <h1 class="heading-lg">선생님</h1>
+    <p class="body-md placeholder-desc">과목별 선생님과 담당 학생을 확인하고 관리할 수 있습니다.</p>
+  </div>
+
+  <div class="teacher-toolbar">
+    <div class="subject-tabs" id="subject-tabs" role="tablist"></div>
+    <button type="button" class="btn-primary" id="add-teacher-btn">+ 선생님 추가</button>
+  </div>
+
+  <div class="teacher-subbar">
+    <input type="search" id="teacher-search" class="text-input teacher-search" placeholder="학생 또는 선생님 이름으로 찾기" aria-label="학생 또는 선생님 이름으로 찾기">
+    <button type="button" class="btn-secondary" id="expand-all-btn">모두 펼치기</button>
+  </div>
+
+  <div class="class-list" id="teacher-list"></div>
+</main>
+
+<div class="modal-overlay" id="teacher-modal-overlay" hidden>
+  <div class="modal-card">
+    <h2 class="heading-md">선생님 추가</h2>
+    <form id="teacher-form">
+      <label class="auth-field">
+        <span class="caption">과목</span>
+        <select name="subject" class="text-input" id="teacher-subject-select"></select>
+      </label>
+      <label class="auth-field">
+        <span class="caption">선생님 성함</span>
+        <input type="text" name="teacherName" class="text-input" placeholder="예: 홍길동" required>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="teacher-modal-cancel">취소</button>
+        <button type="submit" class="btn-primary">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="student-select-overlay" hidden>
+  <div class="modal-card modal-card-wide">
+    <h2 class="heading-md" id="student-select-title">학생 추가</h2>
+    <input type="search" id="student-select-search" class="text-input" placeholder="이름, 학교, 학년으로 검색">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>이름</th>
+            <th>학교</th>
+            <th>학년</th>
+          </tr>
+        </thead>
+        <tbody id="student-select-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="student-select-cancel">취소</button>
+      <button type="button" class="btn-primary" id="student-select-confirm">추가하기</button>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="../js/layout.js?v=21"></script>
+<script src="../js/students.js?v=21"></script>
+<script src="../js/teachers.js?v=21"></script>
+<script>
+  var listEl = document.getElementById('teacher-list');
+  var tabsEl = document.getElementById('subject-tabs');
+
+  function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function subjectFromHash() {
+    var key = location.hash.replace('#', '');
+    var known = Teachers.SUBJECTS.some(function (s) { return s.key === key; });
+    return known ? key : Teachers.SUBJECTS[0].key;
+  }
+
+  var activeSubject = subjectFromHash();
+  var searchInput = document.getElementById('teacher-search');
+  var expandAllBtn = document.getElementById('expand-all-btn');
+
+  // 학생 정보로 갔다가 "뒤로"로 돌아왔을 때 펼쳐 둔 선생님이 그대로 보이도록 기억해 둔다.
+  var EXPANDED_KEY = 'teacherPage.expanded';
+  var expandedIds = {};
+  try { expandedIds = JSON.parse(sessionStorage.getItem(EXPANDED_KEY)) || {}; } catch (err) { expandedIds = {}; }
+
+  function saveExpanded() {
+    try { sessionStorage.setItem(EXPANDED_KEY, JSON.stringify(expandedIds)); } catch (err) { /* 저장 못 해도 화면은 그대로 동작 */ }
+  }
+
+  // 수강 수업 칸에는 실제 반만 보여준다("○쌤" 묶음은 이 페이지가 대신하므로 뺀다).
+  function classLabel(student) {
+    return Students.splitClasses(student.currentClasses)
+      .filter(function (c) { return !/쌤$/.test(c); })
+      .join(', ');
+  }
+
+  var teacherCounts = {};
+
+  function renderTabs() {
+    tabsEl.innerHTML = Teachers.SUBJECTS.map(function (s) {
+      var on = s.key === activeSubject;
+      var count = teacherCounts[s.key];
+      return '<button type="button" role="tab" class="subject-tab' + (on ? ' is-active' : '') + '" aria-selected="' + on + '" data-subject="' + s.key + '">' +
+        s.label + (count !== undefined ? '<span class="subject-tab-count">' + count + '</span>' : '') +
+      '</button>';
+    }).join('');
+  }
+
+  tabsEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('.subject-tab');
+    if (!btn || btn.dataset.subject === activeSubject) return;
+    activeSubject = btn.dataset.subject;
+    history.replaceState(null, '', '#' + activeSubject);
+    renderTabs();
+    renderTeachers();
+  });
+
+  searchInput.addEventListener('input', function () { renderTeachers(); });
+
+  expandAllBtn.addEventListener('click', async function () {
+    var teachers = await Teachers.getBySubject(activeSubject);
+    var allOpen = teachers.length > 0 && teachers.every(function (t) { return expandedIds[t.id]; });
+    teachers.forEach(function (t) { expandedIds[t.id] = !allOpen; });
+    saveExpanded();
+    renderTeachers();
+  });
+
+  var renderSeq = 0;
+
+  async function renderTeachers() {
+    var seq = ++renderSeq;
+    var results = await Promise.all([Teachers.getAll(), Students.getAll()]);
+    if (seq !== renderSeq) return; // 검색어를 빠르게 칠 때 늦게 도착한 이전 결과가 덮어쓰지 않도록
+
+    teacherCounts = {};
+    results[0].forEach(function (t) { teacherCounts[t.subject] = (teacherCounts[t.subject] || 0) + 1; });
+    renderTabs();
+
+    var teachers = results[0].filter(function (t) { return t.subject === activeSubject; });
+    var studentById = {};
+    results[1].forEach(function (s) { studentById[s.id] = s; });
+    var query = searchInput.value.trim();
+
+    var allOpen = teachers.length > 0 && teachers.every(function (t) { return expandedIds[t.id]; });
+    expandAllBtn.textContent = allOpen ? '모두 접기' : '모두 펼치기';
+    expandAllBtn.hidden = !!query;
+
+    if (teachers.length === 0) {
+      listEl.innerHTML = '<p class="table-empty">등록된 선생님이 없습니다.</p>';
+      return;
+    }
+
+    var cards = teachers.map(function (t) {
+      // 삭제된 학생(휴지통)이나 영구 삭제된 학생은 명단에서 자연스럽게 빠진다.
+      var students = (t.studentIds || []).map(function (id) { return studentById[id]; }).filter(Boolean);
+      students.sort(function (a, b) { return a.name.localeCompare(b.name, 'ko'); });
+      var total = students.length;
+
+      // 검색 중에는 이름에 검색어가 들어간 학생이 있는 선생님만, 그 학생만 펼쳐서 보여준다.
+      if (query) {
+        var nameMatches = t.name.indexOf(query) !== -1;
+        if (!nameMatches) {
+          students = students.filter(function (s) { return s.name.indexOf(query) !== -1; });
+          if (students.length === 0) return '';
+        }
+      }
+      var isExpanded = query ? true : !!expandedIds[t.id];
+      var countLabel = (query && students.length !== total) ? ' · ' + total + '명 중 ' + students.length + '명' : ' · ' + total + '명';
+
+      var rows = students.length === 0
+        ? '<tr><td colspan="5" class="table-empty">담당 학생이 없습니다.</td></tr>'
+        : students.map(function (s) {
+            return (
+              '<tr>' +
+                '<td><a class="cell-link" href="./student-detail.html?id=' + encodeURIComponent(s.id) + '">' + escapeHtml(s.name) + '</a></td>' +
+                '<td>' + escapeHtml(s.school) + '</td>' +
+                '<td>' + escapeHtml(s.grade) + '</td>' +
+                '<td>' + escapeHtml(classLabel(s)) + '</td>' +
+                '<td class="roster-action-cell"><button type="button" class="row-action withdraw teacher-remove-btn" data-teacher-id="' + t.id + '" data-student-id="' + s.id + '">빼기</button></td>' +
+              '</tr>'
+            );
+          }).join('');
+
+      return (
+        '<div class="class-card">' +
+          '<div class="class-card-header">' +
+            '<h2 class="heading-md"><button type="button" class="class-title-btn teacher-toggle-btn" data-teacher-id="' + t.id + '">' +
+              escapeHtml(t.name) + ' 선생님<span class="caption class-count">' + countLabel + '</span>' +
+            '</button></h2>' +
+            '<div class="class-card-actions">' +
+              (query ? '' : '<button type="button" class="btn-secondary teacher-toggle-btn" data-teacher-id="' + t.id + '">' + (isExpanded ? '접어서 보기' : '펼쳐서 보기') + '</button>') +
+              '<button type="button" class="btn-secondary teacher-add-student-btn" data-teacher-id="' + t.id + '">+ 학생 추가</button>' +
+              '<button type="button" class="btn-danger teacher-delete-btn" data-teacher-id="' + t.id + '">삭제</button>' +
+            '</div>' +
+          '</div>' +
+          (isExpanded ?
+            '<div class="table-scroll">' +
+              '<table class="data-table roster-table">' +
+                '<thead><tr><th>이름</th><th>학교</th><th>학년</th><th>현재 수강 수업</th><th class="roster-action-cell"></th></tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+              '</table>' +
+            '</div>'
+          : '') +
+        '</div>'
+      );
+    }).join('');
+
+    listEl.innerHTML = cards || '<p class="table-empty">"' + escapeHtml(query) + '"(이)가 들어간 학생이나 선생님이 없습니다.</p>';
+  }
+
+  listEl.addEventListener('click', async function (e) {
+    var toggleBtn = e.target.closest('.teacher-toggle-btn');
+    if (toggleBtn) {
+      if (searchInput.value.trim()) return; // 검색 중에는 결과가 항상 펼쳐져 있다
+      var id = toggleBtn.dataset.teacherId;
+      expandedIds[id] = !expandedIds[id];
+      saveExpanded();
+      renderTeachers();
+      return;
+    }
+
+    var addBtn = e.target.closest('.teacher-add-student-btn');
+    if (addBtn) {
+      openStudentSelect(addBtn.dataset.teacherId);
+      return;
+    }
+
+    var removeBtn = e.target.closest('.teacher-remove-btn');
+    if (removeBtn) {
+      var teacher = await Teachers.getById(removeBtn.dataset.teacherId);
+      var student = await Students.getById(removeBtn.dataset.studentId);
+      if (!teacher || !student) return;
+      if (!confirm(student.name + ' 학생을 ' + teacher.name + ' 선생님 담당 학생에서 뺄까요?')) return;
+      await Teachers.removeStudents(teacher.id, [student.id]);
+      renderTeachers();
+      return;
+    }
+
+    var deleteBtn = e.target.closest('.teacher-delete-btn');
+    if (deleteBtn) {
+      var delTeacher = await Teachers.getById(deleteBtn.dataset.teacherId);
+      if (!delTeacher) return;
+      var count = (delTeacher.studentIds || []).length;
+      if (!confirm(delTeacher.name + ' 선생님을 목록에서 삭제할까요?\n담당 학생 ' + count + '명의 연결도 함께 사라집니다. (학생 정보는 그대로 남습니다)')) return;
+      await Teachers.remove(delTeacher.id);
+      renderTeachers();
+    }
+  });
+
+  // ---- 선생님 추가 ----
+  var teacherOverlay = document.getElementById('teacher-modal-overlay');
+  var teacherForm = document.getElementById('teacher-form');
+  var subjectSelect = document.getElementById('teacher-subject-select');
+  subjectSelect.innerHTML = Teachers.SUBJECTS.map(function (s) {
+    return '<option value="' + s.key + '">' + s.label + '</option>';
+  }).join('');
+
+  document.getElementById('add-teacher-btn').addEventListener('click', function () {
+    teacherForm.reset();
+    subjectSelect.value = activeSubject;
+    teacherOverlay.hidden = false;
+    teacherForm.teacherName.focus();
+  });
+
+  document.getElementById('teacher-modal-cancel').addEventListener('click', function () {
+    teacherOverlay.hidden = true;
+  });
+
+  teacherOverlay.addEventListener('click', function (e) {
+    if (e.target === teacherOverlay) teacherOverlay.hidden = true;
+  });
+
+  teacherForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var subject = subjectSelect.value;
+    var result = await Teachers.add(teacherForm.teacherName.value, subject);
+    if (!result.ok) {
+      alert(result.message);
+      return;
+    }
+    teacherOverlay.hidden = true;
+    if (subject !== activeSubject) {
+      activeSubject = subject;
+      history.replaceState(null, '', '#' + activeSubject);
+      renderTabs();
+    }
+    renderTeachers();
+  });
+
+  // ---- 담당 학생 추가 모달 ----
+  var selectOverlay = document.getElementById('student-select-overlay');
+  var selectTitle = document.getElementById('student-select-title');
+  var selectSearch = document.getElementById('student-select-search');
+  var selectBody = document.getElementById('student-select-body');
+  var activeTeacherId = null;
+
+  async function openStudentSelect(teacherId) {
+    activeTeacherId = teacherId;
+    var teacher = await Teachers.getById(teacherId);
+    if (!teacher) return;
+    selectTitle.textContent = teacher.name + ' 선생님 · 담당 학생 추가';
+    selectSearch.value = '';
+    renderStudentSelect();
+    selectOverlay.hidden = false;
+    selectSearch.focus();
+  }
+
+  async function renderStudentSelect() {
+    var teacher = await Teachers.getById(activeTeacherId);
+    if (!teacher) return;
+    var query = selectSearch.value.trim().toLowerCase();
+    var candidates = (await Students.getAll()).filter(function (s) {
+      return (teacher.studentIds || []).indexOf(s.id) === -1;
+    });
+    if (query) {
+      candidates = candidates.filter(function (s) {
+        return [s.name, s.school, s.grade].some(function (f) {
+          return (f || '').toLowerCase().indexOf(query) !== -1;
+        });
+      });
+    }
+
+    if (candidates.length === 0) {
+      selectBody.innerHTML = '<tr><td colspan="4" class="table-empty">추가할 수 있는 학생이 없습니다.</td></tr>';
+      return;
+    }
+
+    selectBody.innerHTML = candidates.map(function (s) {
+      return (
+        '<tr>' +
+          '<td><input type="checkbox" class="student-select-checkbox" value="' + s.id + '"></td>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td>' + escapeHtml(s.school) + '</td>' +
+          '<td>' + escapeHtml(s.grade) + '</td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  selectSearch.addEventListener('input', renderStudentSelect);
+  document.getElementById('student-select-cancel').addEventListener('click', function () { selectOverlay.hidden = true; });
+  selectOverlay.addEventListener('click', function (e) {
+    if (e.target === selectOverlay) selectOverlay.hidden = true;
+  });
+
+  document.getElementById('student-select-confirm').addEventListener('click', async function () {
+    var checked = Array.prototype.filter.call(
+      selectBody.querySelectorAll('.student-select-checkbox'),
+      function (cb) { return cb.checked; }
+    ).map(function (cb) { return cb.value; });
+
+    if (checked.length > 0) {
+      await Teachers.addStudents(activeTeacherId, checked);
+      expandedIds[activeTeacherId] = true;
+      saveExpanded();
+    }
+    selectOverlay.hidden = true;
+    renderTeachers();
+  });
+
+  window.addEventListener('hashchange', function () {
+    var next = subjectFromHash();
+    if (next === activeSubject) return;
+    activeSubject = next;
+    renderTabs();
+    renderTeachers();
+  });
+
+  window.__authReady.then(function () {
+    document.body.style.visibility = 'visible';
+    renderTabs();
+    renderTeachers();
+  });
+</script>
+</body>
+</html>

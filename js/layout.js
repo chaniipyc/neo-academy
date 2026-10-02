@@ -6,7 +6,8 @@
   var categories = [
     { key: 'students', label: '학생 정보', href: root + 'pages/students.html' },
     { key: 'class', label: '반별 관리', href: root + 'pages/class.html' },
-    { key: 'admission', label: '입반', href: root + 'pages/admission.html' }
+    { key: 'admission', label: '입반', href: root + 'pages/admission.html' },
+    { key: 'teacher', label: '선생님', href: root + 'pages/teacher.html' }
   ];
 
   function escapeHtml(str) {

@@ -35,7 +35,8 @@
       <a href="#attendance" class="help-sidebar-link">6. 출결 관리</a>
       <a href="#test" class="help-sidebar-link">7. 테스트(시험) 관리</a>
       <a href="#admission" class="help-sidebar-link">8. 입반</a>
-      <a href="#trouble" class="help-sidebar-link">9. 문제가 생겼을 때</a>
+      <a href="#teacher" class="help-sidebar-link">9. 선생님</a>
+      <a href="#trouble" class="help-sidebar-link">10. 문제가 생겼을 때</a>
     </nav>
 
     <div class="help-content">
@@ -50,11 +51,12 @@
           <li class="body-md">로그인 화면에서 받은 아이디와 비밀번호를 입력하고 "로그인"을 누릅니다.</li>
           <li class="body-md">
             <div>
-              로그인하면 화면 위쪽에 아래 3개 메뉴가 보입니다. 이름을 누르면 바로 그 화면으로 이동합니다.
+              로그인하면 화면 위쪽에 아래 4개 메뉴가 보입니다. 이름을 누르면 바로 그 화면으로 이동합니다.
               <div class="help-menu-chips">
                 <span class="help-menu-chip">학생 정보</span>
                 <span class="help-menu-chip">반별 관리</span>
                 <span class="help-menu-chip">입반</span>
+                <span class="help-menu-chip">선생님</span>
               </div>
             </div>
           </li>
@@ -97,6 +99,7 @@
         <ul class="help-list body-md">
           <li><strong>+ 학생 추가</strong> — 새 학생을 한 명 등록합니다.</li>
           <li><strong>자세히 보기</strong> — 그 학생의 모든 정보(등록일, 구분, 담임, 수업일, 수강료, 연락처, 주소, 현재 수강 강좌 등)를 한 화면에서 볼 수 있습니다.</li>
+          <li><strong>상담</strong> — 표에서 "상담"을 누르면 상담 날짜와 내용을 기록할 수 있습니다. 저장한 상담 기록은 "자세히 보기"의 <strong>상담 내역</strong>에서 펼쳐 볼 수 있고, 잘못 적은 기록은 ×로 지울 수 있습니다.</li>
           <li><strong>수정 / 삭제</strong> — 표에서 바로, 또는 자세히 보기 화면에서 학생 한 명씩 처리할 수 있습니다.</li>
           <li><strong>선택 삭제</strong> — 표 왼쪽 체크박스로 여러 학생을 한꺼번에 고른 뒤 눌러 한 번에 지울 수 있습니다. 실수를 막기 위해 삭제 전 대상 인원과 이름을 보여주는 확인 창이 한 번 뜹니다.</li>
           <li><strong>삭제된 학생</strong> — 삭제한 학생은 바로 사라지지 않고 "삭제된 학생" 목록으로 옮겨집니다. 여기서 <strong>복원</strong>을 누르면 상담 기록·출결·시험 기록과 반 배정까지 그대로 돌아오고, <strong>영구 삭제</strong>를 누르면 완전히 지워집니다(되돌릴 수 없음).</li>
@@ -188,6 +191,7 @@
         <ul class="help-list body-md">
           <li><strong>+ 반 추가</strong> — 새 반을 만듭니다 (예: 수학A).</li>
           <li><strong>+ 학생 추가</strong> — 학생 정보에 이미 등록된 학생을 이름·학교·학년으로 검색해서 여러 명을 한 번에 그 반에 배정합니다.</li>
+          <li><strong>퇴원</strong> — 반 명단의 학생 줄 오른쪽 "퇴원"을 누르면 그 학생만 이 반에서 빠집니다. 퇴원 날짜를 고르면(기본은 오늘) 학생 정보의 "수강 수업 이력"에 <em>반이름(퇴원 2026.09.15)</em>처럼 기록됩니다. 다른 반 수업은 그대로 유지됩니다.</li>
           <li><strong>완강처리</strong> — 그 반에 있는 학생 전원을 한 번에 수료 처리합니다. 처리 후 반은 화면 아래 <strong>History</strong>로 이동하고, 학생들의 "현재 수강 수업"은 "수강 수업 이력"으로 자동으로 옮겨집니다.</li>
         </ul>
         <p class="body-md">History로 이동한 반은 두 가지 방법으로 정리할 수 있습니다.</p>
@@ -210,6 +214,10 @@
           <li><strong>되돌리기</strong> — 완강처리를 취소하고 그 반과 학생들을 원래 상태로 되돌립니다. 다시 필요하면 언제든 취소할 수 있습니다.</li>
           <li><strong>삭제</strong> — 그 반의 명단·출결·시험 기록을 전부 영구히 지웁니다. <strong>되돌릴 수 없으니</strong>, 정말 더 이상 필요 없는 반일 때만 사용하세요.</li>
         </ul>
+        <div class="help-note">
+          <span class="help-note-label">TIP</span>
+          <p>학원을 그만둔 학생도 기록을 남겨두려면 학생을 삭제하지 말고, 듣던 반마다 "퇴원"을 눌러 주세요.</p>
+        </div>
         <div class="help-note">
           <span class="help-note-label">TIP</span>
           <p>완강처리를 해도 그 반의 출결·시험 기록은 사라지지 않고 History에서 계속 볼 수 있습니다. 기록까지 없애고 싶을 때만 "삭제"를 사용하세요.</p>
@@ -259,7 +267,7 @@
         </div>
         <p class="body-md">입반 테스트를 보러 온 학생의 이름·날짜·시험별 점수를 표로 관리하는 화면입니다.</p>
         <ul class="help-list body-md">
-          <li>표 맨 아래 빈 칸에 이름을 입력하고 Enter(또는 다른 곳 클릭)를 누르면 새 학생 줄이 만들어집니다.</li>
+          <li>표 맨 아래 빈 칸에 이름을 입력하고 Enter를 누르면 새 학생 줄이 만들어집니다.</li>
           <li>날짜 칸을 눌러 그 학생이 테스트를 본 날짜를 입력하세요.</li>
           <li>표 맨 오른쪽 빈 칸에 시험명과 만점을 입력하면 새 시험 열이 만들어집니다. 시험명·만점은 나중에도 다시 고칠 수 있습니다.</li>
           <li>점수 칸에 점수를 입력하세요 (0점~만점 범위를 벗어나면 자동으로 조정됩니다). 반별 관리의 테스트 화면과 마찬가지로 평균보다 낮은 점수는 <strong>연한 빨간색</strong>, 가장 높은 점수는 <strong>연한 파란색</strong>으로 표시됩니다.</li>
@@ -268,9 +276,25 @@
         </ul>
       </section>
 
-      <section class="help-section" id="trouble">
+      <section class="help-section" id="teacher">
         <div class="help-section-head">
           <span class="help-section-num">09</span>
+          <h2 class="heading-md">선생님</h2>
+        </div>
+        <p class="body-md">과목별 선생님과 각 선생님의 담당 학생을 확인하는 화면입니다.</p>
+        <ul class="help-list body-md">
+          <li>위쪽 <strong>수학 / 영어</strong> 탭을 눌러 과목을 고릅니다. 탭 옆 숫자는 그 과목의 선생님 수입니다.</li>
+          <li>선생님은 가나다순으로 나옵니다. <strong>선생님 이름</strong>(또는 "펼쳐서 보기")을 누르면 담당 학생이 가나다순으로 펼쳐집니다. "모두 펼치기"로 한 번에 펼칠 수도 있습니다.</li>
+          <li>펼쳐진 목록에서 <strong>학생 이름</strong>을 누르면 그 학생의 학생 정보(자세히 보기)로 이동합니다. 뒤로 돌아오면 펼쳐 두었던 목록이 그대로 남아 있습니다.</li>
+          <li>검색창에 학생이나 선생님 이름을 입력하면 해당 학생이 있는 선생님만 골라서 보여줍니다.</li>
+          <li><strong>+ 학생 추가</strong> — 등록된 학생을 검색해 그 선생님의 담당 학생으로 넣습니다. 학생 줄의 <strong>빼기</strong>를 누르면 담당에서만 빠지고 학생 정보는 그대로 남습니다.</li>
+          <li><strong>+ 선생님 추가</strong> — 과목과 성함을 입력해 새 선생님을 등록합니다. 필요 없는 선생님은 "삭제"로 지울 수 있습니다(학생 정보에는 영향 없음).</li>
+        </ul>
+      </section>
+
+      <section class="help-section" id="trouble">
+        <div class="help-section-head">
+          <span class="help-section-num">10</span>
           <h2 class="heading-md">문제가 생겼을 때</h2>
         </div>
         <p class="body-md">화면이 이상하거나, 저장이 안 되거나, 잘 모르는 부분이 있으면 관리자(원장님)에게 문의해주세요.</p>
@@ -282,7 +306,7 @@
 
 <div id="site-footer"></div>
 
-<script src="../js/layout.js?v=20"></script>
+<script src="../js/layout.js?v=21"></script>
 <script>
   var sidebarLinks = Array.prototype.slice.call(document.querySelectorAll('.help-sidebar-link'));
   var sections = Array.prototype.slice.call(document.querySelectorAll('.help-section'));

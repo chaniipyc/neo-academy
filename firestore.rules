@@ -35,6 +35,11 @@ service cloud.firestore {
       allow read, write: if hasIssuedAccount();
     }
 
+    // 선생님(과목별) 목록과 담당 학생: 관리자가 발급한 계정만 읽고 쓸 수 있음
+    match /teachers/{teacherId} {
+      allow read, write: if hasIssuedAccount();
+    }
+
     // 계정 role 정보: 본인 문서는 누구나 읽기 가능(로그인 상태 확인용),
     // 그 외 문서는 관리자만 읽기 가능. 쓰기(계정 생성/삭제)는 관리자만 가능.
     match /users/{uid} {
