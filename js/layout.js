@@ -56,7 +56,7 @@
         '<div class="header-top">' +
           '<div class="header-side"><a class="auth-link" href="' + root + 'pages/help.html">도움말</a></div>' +
           '<a class="logo-link" href="' + root + 'index.html">' +
-            '<img class="logo-img" src="' + root + 'assets/NEO_logo.svg" alt="NEO ACADEMY">' +
+            '<img class="logo-img" src="' + root + 'assets/EROOM_logo.svg" alt="EROOM ACADEMY 이룸학원">' +
           '</a>' +
           '<div class="header-side auth-bar">' + renderAuthBar() + '</div>' +
         '</div>' +
@@ -94,7 +94,7 @@
 
     mount.innerHTML =
       '<footer class="site-footer">' +
-        '<p class="caption">© 2026 NEO ACADEMY. 원생관리 시스템.</p>' +
+        '<p class="caption">© 2026 이룸학원 EROOM ACADEMY. 원생관리 시스템.</p>' +
       '</footer>';
   }
 
