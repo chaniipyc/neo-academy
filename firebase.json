@@ -18,7 +18,29 @@
         "정리.txt",
         "brand-assets/**",
         "marketing-site/**",
-        "backups/**"
+        "backups/**",
+        "legacy-redirect/**"
+      ]
+    },
+    {
+      "target": "legacy",
+      "public": "legacy-redirect",
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        }
       ]
     },
     {

@@ -6,6 +6,9 @@
     "neo-academy-cf615": {
       "hosting": {
         "main": [
+          "eroom-academy"
+        ],
+        "legacy": [
           "neo-academy-cf615"
         ],
         "marketing": [
